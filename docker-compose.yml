@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # MySQL 8 服务
+  mysql:
+    image: mysql:8.0
+    container_name: oc-admin-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: oc_admin
+      MYSQL_USER: ${MYSQL_USER:-ocadmin}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ocadmin123}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      # 数据目录挂载到宿主机
+      - ./data/mysql:/var/lib/mysql
+      # 配置文件挂载
+      - ./config/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      # 日志目录挂载
+      - ./logs/mysql:/var/log/mysql
+      # 初始化SQL脚本
+      - ./src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    networks:
+      - oc-admin-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 7 服务
+  redis:
+    image: redis:7-alpine
+    container_name: oc-admin-redis
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "6379:6379"
+    volumes:
+      # Redis 数据持久化
+      - ./data/redis:/data
+      # Redis 配置文件
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - oc-admin-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端应用服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oc-admin-app
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/oc_admin?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-ocadmin}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-ocadmin123}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-for-jwt-signing-must-be-at-least-32-characters-long}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-7200000}
+      TZ: Asia/Shanghai
+    ports:
+      - "8080:8080"
+    volumes:
+      # 应用日志挂载到宿主机
+      - ./logs/app:/app/logs
+      # 时区配置
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - oc-admin-network
+
+# 网络配置
+networks:
+  oc-admin-network:
+    driver: bridge
+    name: oc-admin-network
+
+# 数据卷配置（可选，如果使用 bind mount 则不需要）
+volumes:
+  mysql_data:
+  redis_data:

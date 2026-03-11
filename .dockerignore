@@ -1,0 +1,42 @@
+# 忽略文件和目录
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# 日志
+logs/
+*.log
+
+# 数据
+data/
+
+# 环境变量
+.env
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 文档
+*.md
+!README.md
+
+# 脚本
+deploy.sh
+
+# 其他
+.DS_Store
+Thumbs.db
