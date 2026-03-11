@@ -180,6 +180,76 @@ java -jar target/oc-admin-1.0.0.jar
 - XSS 防护（前端渲染）
 - CORS 跨域配置
 
+## 测试
+
+项目包含完整的单元测试和集成测试，覆盖各功能模块。
+
+### 测试覆盖
+
+| 模块 | 测试类 | 说明 |
+|------|--------|------|
+| **Controller层** | AuthControllerTest | 登录/登出/获取当前用户 |
+| | UserControllerTest | CRUD操作、权限校验 |
+| | RoleControllerTest | 角色CRUD、权限分配 |
+| | MenuControllerTest | 菜单树、层级管理 |
+| **Service层** | AuthServiceTest | 登录逻辑、Token生成 |
+| | UserServiceTest | 用户业务逻辑测试 |
+| | RoleServiceTest | 角色业务逻辑测试 |
+| | MenuServiceTest | 菜单树形结构测试 |
+| **Security层** | JwtTokenProviderTest | Token生成与验证 |
+| | CustomUserDetailsServiceTest | 用户认证加载 |
+| **Repository层** | RepositoryTest | 数据访问测试 |
+| **Common层** | GlobalExceptionHandlerTest | 异常处理测试 |
+
+### 运行测试
+
+```bash
+# 运行所有测试
+mvn test
+
+# 运行指定测试类
+mvn test -Dtest=UserControllerTest
+
+# 运行指定包下的测试
+mvn test -Dtest="com.nirvanafire.ocadmin.service.*"
+
+# 跳过测试
+mvn clean package -DskipTests
+
+# 生成测试报告
+mvn test jacoco:report
+```
+
+### 测试特性
+
+- **集成测试**: 使用 `@SpringBootTest` + `@AutoConfigureMockMvc` 模拟完整HTTP请求
+- **测试顺序**: 使用 `@Order` 保证测试依赖顺序
+- **数据隔离**: 使用 `@Transactional` 保证测试数据不污染数据库
+- **权限测试**: 验证无权限返回403、无Token返回401
+
+### 测试文件位置
+
+```
+src/test/java/com/nirvanafire/ocadmin/
+├── common/
+│   └── GlobalExceptionHandlerTest.java
+├── controller/
+│   ├── AuthControllerTest.java
+│   ├── MenuControllerTest.java
+│   ├── RoleControllerTest.java
+│   └── UserControllerTest.java
+├── repository/
+│   └── RepositoryTest.java
+├── security/
+│   ├── CustomUserDetailsServiceTest.java
+│   └── JwtTokenProviderTest.java
+└── service/
+    ├── AuthServiceTest.java
+    ├── MenuServiceTest.java
+    ├── RoleServiceTest.java
+    └── UserServiceTest.java
+```
+
 ## 许可证
 
 MIT License
