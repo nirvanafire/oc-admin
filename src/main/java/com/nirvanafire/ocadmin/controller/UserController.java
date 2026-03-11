@@ -45,7 +45,9 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('user:list')")
-    public Result<Page<UserDTO>> list(@PageableDefault(size = 10) Pageable pageable) {
-        return Result.success(userService.list(pageable));
+    public Result<Page<UserDTO>> list(
+            @PageableDefault(size = 10) Pageable pageable,
+            @RequestParam(required = false) String username) {
+        return Result.success(userService.list(pageable, username));
     }
 }

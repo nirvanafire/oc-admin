@@ -47,8 +47,10 @@ public class RoleController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('role:list')")
-    public Result<Page<RoleDTO>> list(@PageableDefault(size = 10) Pageable pageable) {
-        return Result.success(roleService.list(pageable));
+    public Result<Page<RoleDTO>> list(
+            @PageableDefault(size = 10) Pageable pageable,
+            @RequestParam(required = false) String code) {
+        return Result.success(roleService.list(pageable, code));
     }
 
     @GetMapping("/all")

@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Set;
@@ -109,6 +110,21 @@ public class RoleServiceImpl implements RoleService {
     @Transactional(readOnly = true)
     public Page<RoleDTO> list(Pageable pageable) {
         Page<SysRole> page = roleRepository.findAll(pageable);
+        List<RoleDTO> list = page.getContent().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+        return new PageImpl<>(list, pageable, page.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RoleDTO> list(Pageable pageable, String code) {
+        Page<SysRole> page;
+        if (StringUtils.hasText(code)) {
+            page = roleRepository.findByCodeContaining(code, pageable);
+        } else {
+            page = roleRepository.findAll(pageable);
+        }
         List<RoleDTO> list = page.getContent().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());

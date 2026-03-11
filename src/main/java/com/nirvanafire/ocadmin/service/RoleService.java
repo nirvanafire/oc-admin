@@ -13,5 +13,6 @@ public interface RoleService {
     void delete(Long id);
     RoleDTO getById(Long id);
     Page<RoleDTO> list(Pageable pageable);
+    Page<RoleDTO> list(Pageable pageable, String code);
     List<RoleDTO> all();
 }

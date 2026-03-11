@@ -118,6 +118,20 @@ public class UserServiceImpl implements UserService {
         return new PageImpl<>(list, pageable, page.getTotalElements());
     }
 
+    @Override
+    public Page<UserDTO> list(Pageable pageable, String username) {
+        Page<SysUser> page;
+        if (StringUtils.hasText(username)) {
+            page = userRepository.findByUsernameContaining(username, pageable);
+        } else {
+            page = userRepository.findAll(pageable);
+        }
+        List<UserDTO> list = page.getContent().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+        return new PageImpl<>(list, pageable, page.getTotalElements());
+    }
+
     private UserDTO toDTO(SysUser user) {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
