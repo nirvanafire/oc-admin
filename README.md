@@ -250,6 +250,86 @@ src/test/java/com/nirvanafire/ocadmin/
     └── UserServiceTest.java
 ```
 
+## Docker 部署
+
+项目提供完整的 Docker Compose 部署配置，一键启动 MySQL、Redis 和后端应用。
+
+### 目录结构
+
+```
+oc-admin/
+├── docker-compose.yml      # Docker Compose 配置文件
+├── Dockerfile              # 应用镜像构建文件
+├── deploy.sh               # 一键部署脚本
+├── .env.example            # 环境变量示例
+├── config/                 # 配置文件目录
+│   ├── mysql/
+│   │   └── my.cnf         # MySQL 配置文件
+│   └── redis/
+│       └── redis.conf     # Redis 配置文件
+├── data/                   # 数据持久化目录（自动创建）
+│   ├── mysql/             # MySQL 数据
+│   └── redis/             # Redis 数据
+└── logs/                   # 日志目录（自动创建）
+    ├── mysql/             # MySQL 日志
+    ├── redis/             # Redis 日志
+    └── app/               # 应用日志
+```
+
+### 快速部署
+
+```bash
+# 方式一：使用部署脚本（推荐）
+chmod +x deploy.sh
+./deploy.sh
+
+# 方式二：手动部署
+cp .env.example .env
+# 编辑 .env 修改配置
+mvn clean package -DskipTests
+docker-compose up -d
+```
+
+### 服务访问
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| 后端 API | http://localhost:8080 | REST API 接口 |
+| MySQL | localhost:3306 | 数据库 |
+| Redis | localhost:6379 | 缓存服务 |
+
+### 数据持久化
+
+| 服务 | 宿主机路径 | 容器路径 |
+|------|------------|----------|
+| MySQL 数据 | `./data/mysql` | `/var/lib/mysql` |
+| MySQL 日志 | `./logs/mysql` | `/var/log/mysql` |
+| Redis 数据 | `./data/redis` | `/data` |
+| 应用日志 | `./logs/app` | `/app/logs` |
+
+### 常用命令
+
+```bash
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f app
+docker-compose logs -f mysql
+docker-compose logs -f redis
+
+# 重启服务
+docker-compose restart app
+
+# 停止所有服务
+docker-compose down
+
+# 停止并删除数据（谨慎使用）
+docker-compose down -v
+```
+
+详细部署文档请参考 [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md)
+
 ## 许可证
 
 MIT License
