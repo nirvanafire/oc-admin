@@ -4,6 +4,7 @@ import com.nirvanafire.ocadmin.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -19,6 +20,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public Result<Void> handleBadCredentialsException(BadCredentialsException e) {
+        log.error("BadCredentialsException: {}", e.getMessage());
+        return Result.error(401, "用户名或密码错误");
+    }
+
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public Result<Void> handleUsernameNotFoundException(UsernameNotFoundException e) {
+        log.error("UsernameNotFoundException: {}", e.getMessage());
         return Result.error(401, "用户名或密码错误");
     }
 

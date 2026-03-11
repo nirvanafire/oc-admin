@@ -98,6 +98,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public RoleDTO getById(Long id) {
         SysRole role = roleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("角色不存在"));
@@ -105,6 +106,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<RoleDTO> list(Pageable pageable) {
         Page<SysRole> page = roleRepository.findAll(pageable);
         List<RoleDTO> list = page.getContent().stream()
@@ -114,6 +116,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<RoleDTO> all() {
         return roleRepository.findAll().stream()
                 .map(this::toDTO)

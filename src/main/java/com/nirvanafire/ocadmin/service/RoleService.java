@@ -15,12 +15,3 @@ public interface RoleService {
     Page<RoleDTO> list(Pageable pageable);
     List<RoleDTO> all();
 }
-
-public interface MenuService {
-    MenuDTO create(MenuDTO dto);
-    MenuDTO update(Long id, MenuDTO dto);
-    void delete(Long id);
-    MenuDTO getById(Long id);
-    List<MenuDTO> getTree();
-    List<MenuDTO> getUserMenus(String username);
-}

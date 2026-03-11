@@ -10,6 +10,7 @@ import com.nirvanafire.ocadmin.security.CustomUserDetailsService;
 import com.nirvanafire.ocadmin.security.JwtTokenProvider;
 import com.nirvanafire.ocadmin.service.AuthService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
@@ -33,13 +35,23 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse login(LoginRequest request) {
+        log.info("尝试登录，用户名: {}", request.getUsername());
+
+        // 先检查用户是否存在
+        var userOpt = userRepository.findByUsername(request.getUsername());
+        if (userOpt.isEmpty()) {
+            log.error("用户不存在: {}", request.getUsername());
+            throw new RuntimeException("用户名或密码错误");
+        }
+
+        SysUser user = userOpt.get();
+        log.info("用户存在: {}, enabled: {}, roles数量: {}, password_hash: {}",
+            user.getUsername(), user.getEnabled(), user.getRoles().size(), user.getPassword());
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        SysUser user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
 
         Set<String> roles = userDetailsService.getUserRoles(user);
         Set<String> permissions = userDetailsService.getUserPermissions(user);

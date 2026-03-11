@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS sys_menu_permission (
 
 -- 创建默认管理员用户（密码：admin123）
 INSERT INTO sys_user (username, password, nickname, email, enabled) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iT6pAFiG', '系统管理员', 'admin@example.com', 1);
+('admin', '$2a$10$oGvkVz2C/8i/HHf1CBsGUuHGNojLdY6D59Mlk1NQAvd5rV8OPEo9y', '系统管理员', 'admin@example.com', 1);
 
 -- 创建默认角色
 INSERT INTO sys_role (code, name, description, enabled) VALUES
