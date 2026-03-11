@@ -32,4 +32,8 @@ public class UserDTO {
     private Boolean enabled;
     
     private Set<Long> roleIds;
+
+    private Set<String> roles;
+
+    private Set<String> permissions;
 }

@@ -3,6 +3,7 @@ package com.nirvanafire.ocadmin.service.impl;
 import com.nirvanafire.ocadmin.config.RedisConfig;
 import com.nirvanafire.ocadmin.dto.LoginRequest;
 import com.nirvanafire.ocadmin.dto.LoginResponse;
+import com.nirvanafire.ocadmin.dto.UserCacheDTO;
 import com.nirvanafire.ocadmin.dto.UserDTO;
 import com.nirvanafire.ocadmin.entity.SysUser;
 import com.nirvanafire.ocadmin.repository.UserRepository;
@@ -58,10 +59,19 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtTokenProvider.generateToken(user.getUsername(), roles, permissions);
 
-        // 缓存用户信息
+        // 缓存精简的用户信息（不含密码）
+        UserCacheDTO userCache = UserCacheDTO.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .nickname(user.getNickname())
+                .avatar(user.getAvatar())
+                .enabled(user.getEnabled())
+                .roles(roles)
+                .permissions(permissions)
+                .build();
         redisTemplate.opsForValue().set(
                 RedisConfig.USER_CACHE_PREFIX + user.getUsername(),
-                user,
+                userCache,
                 Duration.ofHours(1)
         );
 
@@ -93,7 +103,16 @@ public class AuthServiceImpl implements AuthService {
     public UserDTO getCurrentUser(String username) {
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
-        
+
+        Set<String> roles = user.getRoles().stream()
+                .map(r -> r.getCode())
+                .collect(Collectors.toSet());
+
+        Set<String> permissions = user.getRoles().stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .map(p -> p.getCode())
+                .collect(Collectors.toSet());
+
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
@@ -103,6 +122,8 @@ public class AuthServiceImpl implements AuthService {
         dto.setAvatar(user.getAvatar());
         dto.setEnabled(user.getEnabled());
         dto.setRoleIds(user.getRoles().stream().map(r -> r.getId()).collect(Collectors.toSet()));
+        dto.setRoles(roles);
+        dto.setPermissions(permissions);
         return dto;
     }
 }
