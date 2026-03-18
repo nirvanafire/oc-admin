@@ -125,7 +125,12 @@ INSERT INTO sys_permission (code, name, permission_type) VALUES
 ('menu:update', '修改菜单', 'button'),
 ('menu:delete', '删除菜单', 'button'),
 ('menu:view', '查看菜单', 'button'),
-('menu:list', '菜单列表', 'button');
+('menu:list', '菜单列表', 'button'),
+('workflow:list', '流程列表', 'button'),
+('workflow:deploy', '部署流程', 'button'),
+('workflow:delete', '删除流程', 'button'),
+('workflow:request', '提交申请', 'button'),
+('workflow:approve', '审核任务', 'button');
 
 -- 创建默认菜单
 INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_sort, visible) VALUES
@@ -133,6 +138,22 @@ INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_so
 ('用户管理', '/system/users', '/system/users/index', 'menu', 'User', 1, 1, '1'),
 ('角色管理', '/system/roles', '/system/roles/index', 'menu', 'UserFilled', 1, 2, '1'),
 ('菜单管理', '/system/menus', '/system/menus/index', 'menu', 'Menu', 1, 3, '1');
+
+-- 设置工作流目录的父菜单ID变量
+SET @workflow_parent_id = (SELECT LAST_INSERT_ID());
+
+-- 添加工作流管理目录
+INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_sort, visible) VALUES
+('工作流管理', '/workflow', 'Layout', 'directory', 'DocumentCopy', 0, 2, '1');
+
+SET @workflow_parent_id = LAST_INSERT_ID();
+
+-- 添加工作流子菜单
+INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_sort, visible) VALUES
+('流程管理', '/workflow/processes', '/workflow/processes/index', 'menu', 'Document', @workflow_parent_id, 1, '1'),
+('流程设计', '/workflow/processes/design', '/workflow/processes/design', 'menu', 'Edit', @workflow_parent_id, 2, '1'),
+('我的申请', '/workflow/requests', '/workflow/requests/index', 'menu', 'List', @workflow_parent_id, 3, '1'),
+('待审核任务', '/workflow/tasks', '/workflow/tasks/index', 'menu', 'Check', @workflow_parent_id, 4, '1');
 
 -- 关联管理员和超级管理员角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1);

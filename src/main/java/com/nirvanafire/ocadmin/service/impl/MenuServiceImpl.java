@@ -97,12 +97,13 @@ public class MenuServiceImpl implements MenuService {
     public List<MenuDTO> getUserMenus(String username) {
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
-        
-        // 获取用户所有角色关联的菜单
+
+        // 获取用户所有角色关联的菜单（只显示可见菜单）
         Set<SysMenu> menus = user.getRoles().stream()
                 .flatMap(role -> role.getMenus().stream())
+                .filter(menu -> "1".equals(menu.getVisible()))
                 .collect(Collectors.toSet());
-        
+
         return buildTree(new ArrayList<>(menus), 0L);
     }
 

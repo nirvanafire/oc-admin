@@ -50,7 +50,7 @@ public class SysRole {
     @Builder.Default
     private Set<SysPermission> permissions = new HashSet<>();
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "sys_role_menu",
         joinColumns = @JoinColumn(name = "role_id"),

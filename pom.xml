@@ -22,6 +22,7 @@
         <java.version>17</java.version>
         <jjwt.version>0.12.3</jjwt.version>
         <lombok.version>1.18.28</lombok.version>
+        <flowable.version>7.0.0</flowable.version>
     </properties>
     
     <dependencies>
@@ -49,6 +50,19 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Flowable 7.0.0 - Spring Boot 3 兼容 -->
+        <dependency>
+            <groupId>org.flowable</groupId>
+            <artifactId>flowable-spring-boot-starter</artifactId>
+            <version>${flowable.version}</version>
+        </dependency>
+
+        <!-- 邮件服务 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
         
         <!-- MySQL -->

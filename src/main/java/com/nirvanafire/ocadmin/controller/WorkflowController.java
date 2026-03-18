@@ -1,0 +1,127 @@
+package com.nirvanafire.ocadmin.controller;
+
+import com.nirvanafire.ocadmin.common.Result;
+import com.nirvanafire.ocadmin.entity.ApprovalRequest;
+import com.nirvanafire.ocadmin.entity.ApprovalTask;
+import com.nirvanafire.ocadmin.entity.ProcessDefinition;
+import com.nirvanafire.ocadmin.entity.SysUser;
+import com.nirvanafire.ocadmin.repository.UserRepository;
+import com.nirvanafire.ocadmin.security.SecurityUtils;
+import com.nirvanafire.ocadmin.service.WorkflowService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/workflow")
+@RequiredArgsConstructor
+public class WorkflowController {
+
+    private final WorkflowService workflowService;
+    private final UserRepository userRepository;
+
+    @PostMapping("/deploy")
+    @PreAuthorize("hasAuthority('workflow:deploy')")
+    public Result<ProcessDefinition> deployProcess(@RequestBody Map<String, String> request) {
+        String processName = request.get("processName");
+        String processKey = request.get("processKey");
+        String bpmnXml = request.get("bpmnXml");
+        String description = request.get("description");
+
+        ProcessDefinition result = workflowService.deployProcess(processName, processKey, bpmnXml, description);
+        return Result.success(result);
+    }
+
+    @GetMapping("/definitions")
+    @PreAuthorize("hasAuthority('workflow:list')")
+    public Result<List<ProcessDefinition>> getDefinitions() {
+        return Result.success(workflowService.getProcessDefinitions());
+    }
+
+    @DeleteMapping("/definitions/{id}")
+    @PreAuthorize("hasAuthority('workflow:delete')")
+    public Result<Void> deleteDefinition(@PathVariable Long id) {
+        workflowService.deleteProcessDefinition(id);
+        return Result.success();
+    }
+
+    @PostMapping("/requests")
+    @PreAuthorize("hasAuthority('workflow:request')")
+    public Result<ApprovalRequest> submitRequest(@RequestBody Map<String, Object> request) {
+        String username = SecurityUtils.getCurrentUsername();
+        SysUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        String title = (String) request.get("title");
+        String processKey = (String) request.get("processKey");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> formData = (Map<String, Object>) request.get("formData");
+
+        ApprovalRequest result = workflowService.submitRequest(
+                user.getId(),
+                user.getNickname() != null ? user.getNickname() : user.getUsername(),
+                user.getEmail(),
+                title,
+                processKey,
+                formData
+        );
+        return Result.success(result);
+    }
+
+    @GetMapping("/requests/my")
+    @PreAuthorize("hasAuthority('workflow:request')")
+    public Result<List<ApprovalRequest>> getMyRequests() {
+        String username = SecurityUtils.getCurrentUsername();
+        SysUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        return Result.success(workflowService.getMyRequests(user.getId()));
+    }
+
+    @GetMapping("/requests/{id}")
+    @PreAuthorize("hasAuthority('workflow:request')")
+    public Result<ApprovalRequest> getRequest(@PathVariable Long id) {
+        return Result.success(workflowService.getRequest(id));
+    }
+
+    @GetMapping("/tasks/my")
+    @PreAuthorize("hasAuthority('workflow:approve')")
+    public Result<List<ApprovalTask>> getMyTasks() {
+        String username = SecurityUtils.getCurrentUsername();
+        SysUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        return Result.success(workflowService.getMyTasks(user.getId()));
+    }
+
+    @GetMapping("/tasks/{taskId}")
+    @PreAuthorize("hasAuthority('workflow:approve')")
+    public Result<ApprovalTask> getTask(@PathVariable String taskId) {
+        return Result.success(workflowService.getTask(taskId));
+    }
+
+    @PostMapping("/tasks/{taskId}/complete")
+    @PreAuthorize("hasAuthority('workflow:approve')")
+    public Result<ApprovalTask> completeTask(
+            @PathVariable String taskId,
+            @RequestBody Map<String, String> request) {
+        String username = SecurityUtils.getCurrentUsername();
+        SysUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        String action = request.get("action");
+        String comment = request.get("comment");
+
+        ApprovalTask result = workflowService.completeTask(
+                taskId,
+                user.getId(),
+                user.getNickname() != null ? user.getNickname() : user.getUsername(),
+                action,
+                comment
+        );
+        return Result.success(result);
+    }
+}
