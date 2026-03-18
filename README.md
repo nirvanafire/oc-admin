@@ -14,6 +14,8 @@
 | MySQL | 8.x | 数据库 |
 | Java | 17+ | JDK版本 |
 | Maven | 3.9+ | 构建工具 |
+| Flowable | 7.0.0 | 工作流引擎 |
+| Spring Mail | - | 邮件服务 |
 
 ## 项目结构
 
@@ -27,11 +29,22 @@ oc-admin
 │   │   └── exception/                   # 自定义异常
 │   ├── config/                          # 配置类
 │   │   ├── SecurityConfig.java          # Security配置
-│   │   └── RedisConfig.java             # Redis配置
+│   │   ├── RedisConfig.java             # Redis配置
+│   │   ├── FlowableConfig.java          # Flowable配置
+│   │   └── CorsConfig.java              # CORS配置
 │   ├── controller/                      # 控制器层
+│   │   ├── WorkflowController.java      # 工作流控制器
+│   │   └── ...
 │   ├── service/                         # 业务层
+│   │   ├── WorkflowService.java         # 工作流服务
+│   │   ├── EmailService.java            # 邮件服务
+│   │   └── impl/                        # 服务实现
 │   ├── repository/                      # 数据访问层
 │   ├── entity/                          # 实体类
+│   │   ├── ProcessDefinition.java       # 流程定义
+│   │   ├── ApprovalRequest.java         # 审核申请
+│   │   ├── ApprovalTask.java           # 审核任务
+│   │   └── ApprovalNode.java           # 审核节点
 │   ├── dto/                             # 数据传输对象
 │   └── security/                        # 安全相关
 │       ├── JwtTokenProvider.java        # JWT工具
@@ -39,13 +52,15 @@ oc-admin
 │       └── CustomUserDetailsService.java
 ├── src/main/resources
 │   ├── application.yml                  # 配置文件
-│   └── db/init.sql                      # 初始化SQL
+│   └── db/
+│       ├── init.sql                    # 初始化SQL
+│       └── workflow.sql                # 工作流表SQL
 └── pom.xml
 ```
 
 ## 数据库设计
 
-采用 RBAC（Role-Based Access Control）模型：
+### RBAC 模型
 
 - **用户 (sys_user)** - 系统用户
 - **角色 (sys_role)** - 角色定义
@@ -56,6 +71,13 @@ oc-admin
 - sys_user_role - 用户角色关联
 - sys_role_permission - 角色权限关联
 - sys_role_menu - 角色菜单关联
+
+### 工作流模型
+
+- **wf_process_definition** - 流程定义表
+- **wf_approval_request** - 审核申请记录表
+- **wf_approval_node** - 审核节点配置表
+- **wf_approval_task** - 审核任务记录表
 
 ## 快速开始
 
@@ -82,11 +104,18 @@ spring:
     url: jdbc:mysql://localhost:3306/oc_admin?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: your_username
     password: your_password
-  
+
   redis:
     host: localhost
     port: 6379
     password: your_password  # 如无密码留空
+
+  # 邮件配置（可选，邮件功能预留接口）
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: noreply@example.com
+    password: your_password
 
 jwt:
   secret: your-secret-key-here  # 至少32位
@@ -155,6 +184,47 @@ java -jar target/oc-admin-1.0.0.jar
 | /api/menus/{id} | PUT | 更新菜单 | menu:update |
 | /api/menus/{id} | DELETE | 删除菜单 | menu:delete |
 
+### 工作流管理
+
+| 接口 | 方法 | 说明 | 权限 |
+|------|------|------|------|
+| /api/workflow/deploy | POST | 部署流程 | workflow:deploy |
+| /api/workflow/definitions | GET | 流程定义列表 | workflow:list |
+| /api/workflow/definitions/{id} | DELETE | 删除流程定义 | workflow:delete |
+| /api/workflow/requests | POST | 提交审核申请 | workflow:request |
+| /api/workflow/requests/my | GET | 获取我的申请 | workflow:request |
+| /api/workflow/requests/{id} | GET | 获取申请详情 | workflow:request |
+| /api/workflow/tasks/my | GET | 获取我的待审核任务 | workflow:approve |
+| /api/workflow/tasks/{taskId} | GET | 获取任务详情 | workflow:approve |
+| /api/workflow/tasks/{taskId}/complete | POST | 完成审核任务 | workflow:approve |
+
+## 工作流功能
+
+### 流程设计
+
+管理员可以通过 bpmn-js 在线设计审核流程：
+
+1. **开始事件** - 流程起始节点
+2. **用户任务** - 审核节点，可配置审核人（指定用户或指定角色）
+3. **排他网关** - 条件分支，支持条件表达式如 `${amount > 10000}`
+4. **结束事件** - 流程结束节点
+
+### 审核流程
+
+1. 用户提交审核申请
+2. 系统根据流程配置自动分配审核任务
+3. 审核人收到邮件通知（邮件服务预留接口）
+4. 审核人通过/拒绝申请
+5. 审核结果邮件通知申请人
+
+### 权限说明
+
+- `workflow:list` - 查看流程列表
+- `workflow:deploy` - 部署新流程
+- `workflow:delete` - 删除流程定义
+- `workflow:request` - 提交审核申请
+- `workflow:approve` - 审核任务
+
 ## 前端项目
 
 配套前端项目使用 Vue3 开发：
@@ -170,6 +240,9 @@ java -jar target/oc-admin-1.0.0.jar
 - ✅ 接口权限校验
 - ✅ 全局异常处理
 - ✅ Redis 缓存
+- ✅ Flowable 工作流引擎
+- ✅ 在线流程设计（bpmn-js）
+- ✅ 邮件通知（预留接口）
 
 ## 安全特性
 
@@ -184,23 +257,6 @@ java -jar target/oc-admin-1.0.0.jar
 
 项目包含完整的单元测试和集成测试，覆盖各功能模块。
 
-### 测试覆盖
-
-| 模块 | 测试类 | 说明 |
-|------|--------|------|
-| **Controller层** | AuthControllerTest | 登录/登出/获取当前用户 |
-| | UserControllerTest | CRUD操作、权限校验 |
-| | RoleControllerTest | 角色CRUD、权限分配 |
-| | MenuControllerTest | 菜单树、层级管理 |
-| **Service层** | AuthServiceTest | 登录逻辑、Token生成 |
-| | UserServiceTest | 用户业务逻辑测试 |
-| | RoleServiceTest | 角色业务逻辑测试 |
-| | MenuServiceTest | 菜单树形结构测试 |
-| **Security层** | JwtTokenProviderTest | Token生成与验证 |
-| | CustomUserDetailsServiceTest | 用户认证加载 |
-| **Repository层** | RepositoryTest | 数据访问测试 |
-| **Common层** | GlobalExceptionHandlerTest | 异常处理测试 |
-
 ### 运行测试
 
 ```bash
@@ -210,71 +266,13 @@ mvn test
 # 运行指定测试类
 mvn test -Dtest=UserControllerTest
 
-# 运行指定包下的测试
-mvn test -Dtest="com.nirvanafire.ocadmin.service.*"
-
 # 跳过测试
 mvn clean package -DskipTests
-
-# 生成测试报告
-mvn test jacoco:report
-```
-
-### 测试特性
-
-- **集成测试**: 使用 `@SpringBootTest` + `@AutoConfigureMockMvc` 模拟完整HTTP请求
-- **测试顺序**: 使用 `@Order` 保证测试依赖顺序
-- **数据隔离**: 使用 `@Transactional` 保证测试数据不污染数据库
-- **权限测试**: 验证无权限返回403、无Token返回401
-
-### 测试文件位置
-
-```
-src/test/java/com/nirvanafire/ocadmin/
-├── common/
-│   └── GlobalExceptionHandlerTest.java
-├── controller/
-│   ├── AuthControllerTest.java
-│   ├── MenuControllerTest.java
-│   ├── RoleControllerTest.java
-│   └── UserControllerTest.java
-├── repository/
-│   └── RepositoryTest.java
-├── security/
-│   ├── CustomUserDetailsServiceTest.java
-│   └── JwtTokenProviderTest.java
-└── service/
-    ├── AuthServiceTest.java
-    ├── MenuServiceTest.java
-    ├── RoleServiceTest.java
-    └── UserServiceTest.java
 ```
 
 ## Docker 部署
 
 项目提供完整的 Docker Compose 部署配置，一键启动 MySQL、Redis 和后端应用。
-
-### 目录结构
-
-```
-oc-admin/
-├── docker-compose.yml      # Docker Compose 配置文件
-├── Dockerfile              # 应用镜像构建文件
-├── deploy.sh               # 一键部署脚本
-├── .env.example            # 环境变量示例
-├── config/                 # 配置文件目录
-│   ├── mysql/
-│   │   └── my.cnf         # MySQL 配置文件
-│   └── redis/
-│       └── redis.conf     # Redis 配置文件
-├── data/                   # 数据持久化目录（自动创建）
-│   ├── mysql/             # MySQL 数据
-│   └── redis/             # Redis 数据
-└── logs/                   # 日志目录（自动创建）
-    ├── mysql/             # MySQL 日志
-    ├── redis/             # Redis 日志
-    └── app/               # 应用日志
-```
 
 ### 快速部署
 
@@ -285,47 +283,8 @@ chmod +x deploy.sh
 
 # 方式二：手动部署
 cp .env.example .env
-# 编辑 .env 修改配置
 mvn clean package -DskipTests
 docker-compose up -d
-```
-
-### 服务访问
-
-| 服务 | 地址 | 说明 |
-|------|------|------|
-| 后端 API | http://localhost:8080 | REST API 接口 |
-| MySQL | localhost:3306 | 数据库 |
-| Redis | localhost:6379 | 缓存服务 |
-
-### 数据持久化
-
-| 服务 | 宿主机路径 | 容器路径 |
-|------|------------|----------|
-| MySQL 数据 | `./data/mysql` | `/var/lib/mysql` |
-| MySQL 日志 | `./logs/mysql` | `/var/log/mysql` |
-| Redis 数据 | `./data/redis` | `/data` |
-| 应用日志 | `./logs/app` | `/app/logs` |
-
-### 常用命令
-
-```bash
-# 查看服务状态
-docker-compose ps
-
-# 查看日志
-docker-compose logs -f app
-docker-compose logs -f mysql
-docker-compose logs -f redis
-
-# 重启服务
-docker-compose restart app
-
-# 停止所有服务
-docker-compose down
-
-# 停止并删除数据（谨慎使用）
-docker-compose down -v
 ```
 
 详细部署文档请参考 [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md)
