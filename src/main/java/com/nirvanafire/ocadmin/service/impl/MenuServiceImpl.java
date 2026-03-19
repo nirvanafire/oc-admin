@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -98,11 +99,11 @@ public class MenuServiceImpl implements MenuService {
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
 
-        // 获取用户所有角色关联的菜单（只显示可见菜单）
+        // 获取用户所有角色关联的菜单（只显示可见菜单），使用 LinkedHashSet 保持顺序
         Set<SysMenu> menus = user.getRoles().stream()
                 .flatMap(role -> role.getMenus().stream())
                 .filter(menu -> "1".equals(menu.getVisible()))
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
         return buildTree(new ArrayList<>(menus), 0L);
     }
@@ -110,6 +111,15 @@ public class MenuServiceImpl implements MenuService {
     private List<MenuDTO> buildTree(List<SysMenu> menus, Long parentId) {
         return menus.stream()
                 .filter(menu -> parentId.equals(menu.getParentId()))
+                .sorted((a, b) -> {
+                    // 按 menuSort 排序，相同则按 id 排序
+                    int sortCompare = Integer.compare(
+                            a.getMenuSort() != null ? a.getMenuSort() : 0,
+                            b.getMenuSort() != null ? b.getMenuSort() : 0
+                    );
+                    if (sortCompare != 0) return sortCompare;
+                    return a.getId().compareTo(b.getId());
+                })
                 .map(menu -> {
                     MenuDTO dto = toDTO(menu);
                     dto.setChildren(buildTree(menus, menu.getId()));

@@ -14,9 +14,9 @@ public interface ProcessDefinitionRepository extends JpaRepository<ProcessDefini
 
     List<ProcessDefinition> findByProcessKeyOrderByVersionDesc(String processKey);
 
-    Optional<ProcessDefinition> findTopByProcessKeyOrderByVersionDesc(String processKey);
+    Optional<ProcessDefinition> findTopByProcessKeyAndStatusOrderByVersionDesc(String processKey, Integer status);
 
     List<ProcessDefinition> findByStatus(Integer status);
 
-    boolean existsByProcessKey(String processKey);
+    boolean existsByProcessKeyAndStatus(String processKey, Integer status);
 }

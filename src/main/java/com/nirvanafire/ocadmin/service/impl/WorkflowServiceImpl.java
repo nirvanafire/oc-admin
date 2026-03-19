@@ -54,7 +54,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     @Transactional
     public ProcessDefinition deployProcess(String processName, String processKey, String bpmnXml, String description) {
         Integer newVersion = 1;
-        ProcessDefinition existing = processDefinitionRepository.findTopByProcessKeyOrderByVersionDesc(processKey).orElse(null);
+        ProcessDefinition existing = processDefinitionRepository.findTopByProcessKeyAndStatusOrderByVersionDesc(processKey, 1).orElse(null);
         if (existing != null) {
             newVersion = existing.getVersion() + 1;
         }
@@ -76,6 +76,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                 .processName(processName)
                 .description(description)
                 .flowableDefinitionId(deployment.getId())
+                .xml(bpmnXml)
                 .version(newVersion)
                 .status(1)
                 .build();
@@ -89,7 +90,7 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Override
     public List<ProcessDefinition> getProcessDefinitions() {
-        return processDefinitionRepository.findAll().stream()
+        return processDefinitionRepository.findByStatus(1).stream()
                 .collect(Collectors.toList());
     }
 
@@ -109,15 +110,81 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Override
     @Transactional
+    public ProcessDefinition updateProcessDefinition(Long id, String processName, String processKey, String description) {
+        ProcessDefinition processDef = processDefinitionRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("流程定义不存在"));
+
+        processDef.setProcessName(processName);
+        processDef.setProcessKey(processKey);
+        processDef.setDescription(description);
+
+        processDef = processDefinitionRepository.save(processDef);
+        log.info("流程定义已更新: id={}, processKey={}", id, processKey);
+
+        return processDef;
+    }
+
+    @Override
+    @Transactional
+    public ProcessDefinition saveProcessDefinition(Long id, String processName, String processKey, String bpmnXml, String description) {
+        // 部署新的 BPMN 流程到 Flowable
+        DeploymentBuilder builder = repositoryService.createDeployment()
+                .name(processName)
+                .key(processKey);
+
+        if (bpmnXml != null && bpmnXml.contains("<?xml")) {
+            builder.addString(processKey + ".bpmn20.xml", bpmnXml);
+        } else {
+            builder.addString(processKey + ".bpmn20.xml", bpmnXml);
+        }
+
+        Deployment deployment = builder.deploy();
+
+        if (id != null) {
+            // 更新已有流程
+            ProcessDefinition existing = processDefinitionRepository.findById(id)
+                    .orElseThrow(() -> new BusinessException("流程定义不存在"));
+
+            existing.setProcessName(processName);
+            existing.setProcessKey(processKey);
+            existing.setDescription(description);
+            existing.setFlowableDefinitionId(deployment.getId());
+            existing.setXml(bpmnXml);
+
+            existing = processDefinitionRepository.save(existing);
+            log.info("流程定义已保存（更新）: id={}, processKey={}, deploymentId={}", id, processKey, deployment.getId());
+            return existing;
+        } else {
+            // 新建流程
+            Integer newVersion = 1;
+            ProcessDefinition existing = processDefinitionRepository.findTopByProcessKeyAndStatusOrderByVersionDesc(processKey, 1).orElse(null);
+            if (existing != null) {
+                newVersion = existing.getVersion() + 1;
+            }
+
+            ProcessDefinition processDef = ProcessDefinition.builder()
+                    .processKey(processKey)
+                    .processName(processName)
+                    .description(description)
+                    .flowableDefinitionId(deployment.getId())
+                    .xml(bpmnXml)
+                    .version(newVersion)
+                    .status(1)
+                    .build();
+
+            processDef = processDefinitionRepository.save(processDef);
+            log.info("流程定义已保存（新建）: processKey={}, version={}, deploymentId={}", processKey, newVersion, deployment.getId());
+            return processDef;
+        }
+    }
+
+    @Override
+    @Transactional
     public ApprovalRequest submitRequest(Long applicantId, String applicantName, String applicantEmail,
                                          String title, String processKey, Map<String, Object> formData) {
         ProcessDefinition processDef = processDefinitionRepository
-                .findTopByProcessKeyOrderByVersionDesc(processKey)
+                .findTopByProcessKeyAndStatusOrderByVersionDesc(processKey, 1)
                 .orElseThrow(() -> new BusinessException("流程不存在: " + processKey));
-
-        if (processDef.getStatus() != 1) {
-            throw new BusinessException("流程未激活");
-        }
 
         Map<String, Object> variables = new HashMap<>();
         variables.put("applicantId", applicantId);

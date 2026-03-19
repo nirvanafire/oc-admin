@@ -25,6 +25,16 @@ public interface WorkflowService {
     void deleteProcessDefinition(Long id);
 
     /**
+     * 更新流程定义（基本信息）
+     */
+    ProcessDefinition updateProcessDefinition(Long id, String processName, String processKey, String description);
+
+    /**
+     * 保存流程定义（更新XML）
+     */
+    ProcessDefinition saveProcessDefinition(Long id, String processName, String processKey, String bpmnXml, String description);
+
+    /**
      * 提交审核申请
      */
     ApprovalRequest submitRequest(Long applicantId, String applicantName, String applicantEmail,

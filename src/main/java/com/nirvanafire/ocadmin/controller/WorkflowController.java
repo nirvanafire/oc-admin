@@ -48,6 +48,30 @@ public class WorkflowController {
         return Result.success();
     }
 
+    @PutMapping("/definitions/{id}")
+    @PreAuthorize("hasAuthority('workflow:deploy')")
+    public Result<ProcessDefinition> updateDefinition(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        String processName = request.get("processName");
+        String processKey = request.get("processKey");
+        String description = request.get("description");
+
+        ProcessDefinition result = workflowService.updateProcessDefinition(id, processName, processKey, description);
+        return Result.success(result);
+    }
+
+    @PostMapping("/definitions/save")
+    @PreAuthorize("hasAuthority('workflow:deploy')")
+    public Result<ProcessDefinition> saveDefinition(@RequestBody Map<String, Object> request) {
+        Long id = request.get("id") != null ? Long.valueOf(request.get("id").toString()) : null;
+        String processName = (String) request.get("processName");
+        String processKey = (String) request.get("processKey");
+        String bpmnXml = (String) request.get("bpmnXml");
+        String description = (String) request.get("description");
+
+        ProcessDefinition result = workflowService.saveProcessDefinition(id, processName, processKey, bpmnXml, description);
+        return Result.success(result);
+    }
+
     @PostMapping("/requests")
     @PreAuthorize("hasAuthority('workflow:request')")
     public Result<ApprovalRequest> submitRequest(@RequestBody Map<String, Object> request) {

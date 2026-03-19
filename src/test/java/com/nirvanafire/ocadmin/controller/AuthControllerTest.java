@@ -1,4 +1,4 @@
-package com.nirvanafire.ocadmin;
+package com.nirvanafire.ocadmin.controller;
 
 import com.nirvanafire.ocadmin.dto.LoginRequest;
 import com.nirvanafire.ocadmin.dto.UserDTO;

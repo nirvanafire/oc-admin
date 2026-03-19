@@ -151,9 +151,8 @@ SET @workflow_parent_id = LAST_INSERT_ID();
 -- 添加工作流子菜单
 INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_sort, visible) VALUES
 ('流程管理', '/workflow/processes', '/workflow/processes/index', 'menu', 'Document', @workflow_parent_id, 1, '1'),
-('流程设计', '/workflow/processes/design', '/workflow/processes/design', 'menu', 'Edit', @workflow_parent_id, 2, '1'),
-('我的申请', '/workflow/requests', '/workflow/requests/index', 'menu', 'List', @workflow_parent_id, 3, '1'),
-('待审核任务', '/workflow/tasks', '/workflow/tasks/index', 'menu', 'Check', @workflow_parent_id, 4, '1');
+('我的申请', '/workflow/requests', '/workflow/requests/index', 'menu', 'List', @workflow_parent_id, 2, '1'),
+('待审核任务', '/workflow/tasks', '/workflow/tasks/index', 'menu', 'Check', @workflow_parent_id, 3, '1');
 
 -- 关联管理员和超级管理员角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1);
