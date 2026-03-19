@@ -34,7 +34,10 @@ oc-admin
 │   │   └── CorsConfig.java              # CORS配置
 │   ├── controller/                      # 控制器层
 │   │   ├── WorkflowController.java      # 工作流控制器
-│   │   └── ...
+│   │   ├── AuthController.java          # 认证控制器
+│   │   ├── UserController.java          # 用户控制器
+│   │   ├── RoleController.java          # 角色控制器
+│   │   └── MenuController.java          # 菜单控制器
 │   ├── service/                         # 业务层
 │   │   ├── WorkflowService.java         # 工作流服务
 │   │   ├── EmailService.java            # 邮件服务
@@ -43,8 +46,8 @@ oc-admin
 │   ├── entity/                          # 实体类
 │   │   ├── ProcessDefinition.java       # 流程定义
 │   │   ├── ApprovalRequest.java         # 审核申请
-│   │   ├── ApprovalTask.java           # 审核任务
-│   │   └── ApprovalNode.java           # 审核节点
+│   │   ├── ApprovalTask.java            # 审核任务
+│   │   └── ApprovalNode.java            # 审核节点
 │   ├── dto/                             # 数据传输对象
 │   └── security/                        # 安全相关
 │       ├── JwtTokenProvider.java        # JWT工具
@@ -137,7 +140,7 @@ java -jar target/oc-admin-1.0.0.jar
 
 ### 5. 访问接口
 
-- 基础地址: `http://localhost:8080`
+- 基础地址: `http://localhost:8090`
 - 登录接口: `POST /api/auth/login`
 
 ### 默认账号
@@ -190,7 +193,9 @@ java -jar target/oc-admin-1.0.0.jar
 |------|------|------|------|
 | /api/workflow/deploy | POST | 部署流程 | workflow:deploy |
 | /api/workflow/definitions | GET | 流程定义列表 | workflow:list |
+| /api/workflow/definitions/{id} | PUT | 更新流程定义 | workflow:deploy |
 | /api/workflow/definitions/{id} | DELETE | 删除流程定义 | workflow:delete |
+| /api/workflow/definitions/save | POST | 保存流程定义(新建/更新) | workflow:deploy |
 | /api/workflow/requests | POST | 提交审核申请 | workflow:request |
 | /api/workflow/requests/my | GET | 获取我的申请 | workflow:request |
 | /api/workflow/requests/{id} | GET | 获取申请详情 | workflow:request |
@@ -204,7 +209,7 @@ java -jar target/oc-admin-1.0.0.jar
 
 管理员可以通过 bpmn-js 在线设计审核流程：
 
-1. **开始事件** - 流程起始节点
+1. **开始事件** - 流程起始节点（每个流程必须有且只有一个开始事件）
 2. **用户任务** - 审核节点，可配置审核人（指定用户或指定角色）
 3. **排他网关** - 条件分支，支持条件表达式如 `${amount > 10000}`
 4. **结束事件** - 流程结束节点
@@ -220,7 +225,7 @@ java -jar target/oc-admin-1.0.0.jar
 ### 权限说明
 
 - `workflow:list` - 查看流程列表
-- `workflow:deploy` - 部署新流程
+- `workflow:deploy` - 部署/编辑流程
 - `workflow:delete` - 删除流程定义
 - `workflow:request` - 提交审核申请
 - `workflow:approve` - 审核任务
