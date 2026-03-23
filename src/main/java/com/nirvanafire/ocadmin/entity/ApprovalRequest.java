@@ -28,6 +28,9 @@ public class ApprovalRequest {
     @Column(name = "business_key", length = 200)
     private String businessKey;
 
+    @Column(name = "process_key", length = 100)
+    private String processKey;
+
     @Column(nullable = false, length = 200)
     private String title;
 

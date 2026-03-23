@@ -72,16 +72,18 @@ public class RoleServiceImpl implements RoleService {
     }
 
     private void setPermissionsAndMenus(SysRole role, RoleDTO dto) {
-        if (dto.getPermissionIds() != null) {
+        if (dto.getPermissionIds() != null && !dto.getPermissionIds().isEmpty()) {
             Set<SysPermission> permissions = dto.getPermissionIds().stream()
+                    .filter(id -> id != null)  // 过滤掉null值
                     .map(id -> permissionRepository.findById(id)
                             .orElseThrow(() -> new BusinessException("权限不存在: " + id)))
                     .collect(Collectors.toSet());
             role.setPermissions(permissions);
         }
-        
-        if (dto.getMenuIds() != null) {
+
+        if (dto.getMenuIds() != null && !dto.getMenuIds().isEmpty()) {
             Set<SysMenu> menus = dto.getMenuIds().stream()
+                    .filter(id -> id != null)  // 过滤掉null值
                     .map(id -> menuRepository.findById(id)
                             .orElseThrow(() -> new BusinessException("菜单不存在: " + id)))
                     .collect(Collectors.toSet());

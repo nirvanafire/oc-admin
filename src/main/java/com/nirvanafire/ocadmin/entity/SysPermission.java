@@ -35,6 +35,13 @@ public class SysPermission {
     @Column(length = 255)
     private String description;
 
+    @Column(name = "category", length = 50)
+    private String category;  // 权限分类：user, role, menu, workflow, permission
+
+    @Column(name = "permission_sort")
+    @Builder.Default
+    private Integer permissionSort = 0;  // 分类内排序
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

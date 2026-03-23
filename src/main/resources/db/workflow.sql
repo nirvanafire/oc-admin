@@ -17,20 +17,22 @@ CREATE TABLE IF NOT EXISTS wf_approval_request (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     process_instance_id VARCHAR(100),
     business_key VARCHAR(200),
+    process_key VARCHAR(100),
     title VARCHAR(200) NOT NULL,
     applicant_id BIGINT NOT NULL,
     applicant_name VARCHAR(100) NOT NULL,
     applicant_email VARCHAR(100),
     current_node VARCHAR(100),
     current_node_name VARCHAR(100),
-    status VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING: 待审核, APPROVED: 已通过, REJECTED: 已拒绝',
+    status VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING: 待审核, APPROVED: 已通过, REJECTED: 已拒绝, CANCELLED: 已撤销',
     form_data JSON,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     complete_time DATETIME,
     INDEX idx_applicant_id (applicant_id),
     INDEX idx_status (status),
-    INDEX idx_process_instance_id (process_instance_id)
+    INDEX idx_process_instance_id (process_instance_id),
+    INDEX idx_process_key (process_key)
 );
 
 -- 审核节点配置表
@@ -57,7 +59,7 @@ CREATE TABLE IF NOT EXISTS wf_approval_task (
     assignee_email VARCHAR(100),
     action VARCHAR(20) COMMENT 'APPROVE: 通过, REJECT: 拒绝',
     comment TEXT,
-    task_status VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING: 待处理, COMPLETED: 已处理',
+    task_status VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING: 待处理, COMPLETED: 已处理, REJECTED: 已拒绝, CANCELLED: 已撤销',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     complete_time DATETIME,
     INDEX idx_request_id (request_id),

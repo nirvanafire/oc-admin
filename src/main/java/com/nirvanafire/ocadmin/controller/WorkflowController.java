@@ -1,6 +1,7 @@
 package com.nirvanafire.ocadmin.controller;
 
 import com.nirvanafire.ocadmin.common.Result;
+import com.nirvanafire.ocadmin.dto.TaskDTO;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
 import com.nirvanafire.ocadmin.entity.ApprovalTask;
 import com.nirvanafire.ocadmin.entity.ProcessDefinition;
@@ -72,6 +73,31 @@ public class WorkflowController {
         return Result.success(result);
     }
 
+    @GetMapping("/definitions/{id}/deployed")
+    @PreAuthorize("hasAuthority('workflow:list')")
+    public Result<Boolean> isDeployed(@PathVariable Long id) {
+        return Result.success(workflowService.isProcessDeployed(id));
+    }
+
+    @PostMapping("/definitions/{id}/deploy")
+    @PreAuthorize("hasAuthority('workflow:deploy')")
+    public Result<ProcessDefinition> deployDefinition(@PathVariable Long id) {
+        ProcessDefinition result = workflowService.deployDefinition(id);
+        return Result.success(result);
+    }
+
+    @PostMapping("/definitions/batch-deploy")
+    @PreAuthorize("hasAuthority('workflow:deploy')")
+    public Result<List<ProcessDefinition>> batchDeployDefinition(@RequestBody List<Long> ids) {
+        List<ProcessDefinition> results = workflowService.batchDeployDefinition(ids);
+        return Result.success(results);
+    }
+
+    @GetMapping("/definitions/deployed/all")
+    public Result<List<Map<String, Object>>> getAllDeployedProcesses() {
+        return Result.success(workflowService.getAllDeployedProcesses());
+    }
+
     @PostMapping("/requests")
     @PreAuthorize("hasAuthority('workflow:request')")
     public Result<ApprovalRequest> submitRequest(@RequestBody Map<String, Object> request) {
@@ -111,19 +137,39 @@ public class WorkflowController {
         return Result.success(workflowService.getRequest(id));
     }
 
-    @GetMapping("/tasks/my")
-    @PreAuthorize("hasAuthority('workflow:approve')")
-    public Result<List<ApprovalTask>> getMyTasks() {
+    @PostMapping("/requests/{id}/cancel")
+    @PreAuthorize("hasAuthority('workflow:request')")
+    public Result<ApprovalRequest> cancelRequest(@PathVariable Long id) {
         String username = SecurityUtils.getCurrentUsername();
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
 
-        return Result.success(workflowService.getMyTasks(user.getId()));
+        return Result.success(workflowService.cancelRequest(id, user.getId()));
+    }
+
+    @PostMapping("/requests/{id}/withdraw")
+    @PreAuthorize("hasAuthority('workflow:request')")
+    public Result<ApprovalRequest> withdrawRequest(@PathVariable Long id) {
+        String username = SecurityUtils.getCurrentUsername();
+        SysUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        return Result.success(workflowService.withdrawRequest(id, user.getId()));
+    }
+
+    @GetMapping("/tasks/my")
+    @PreAuthorize("hasAuthority('workflow:approve')")
+    public Result<List<TaskDTO>> getMyTasks(@RequestParam(required = false) String taskStatus) {
+        String username = SecurityUtils.getCurrentUsername();
+        SysUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        return Result.success(workflowService.getMyTasks(user.getId(), taskStatus));
     }
 
     @GetMapping("/tasks/{taskId}")
     @PreAuthorize("hasAuthority('workflow:approve')")
-    public Result<ApprovalTask> getTask(@PathVariable String taskId) {
+    public Result<TaskDTO> getTask(@PathVariable String taskId) {
         return Result.success(workflowService.getTask(taskId));
     }
 
