@@ -823,6 +823,20 @@ public class WorkflowServiceImpl implements WorkflowService {
         return request;
     }
 
+    @Override
+    public List<TaskDTO> getRequestTasks(Long requestId) {
+        List<ApprovalTask> tasks = approvalTaskRepository.findByRequestId(requestId);
+        return tasks.stream()
+                .map(this::toTaskDTO)
+                .sorted((a, b) -> {
+                    if (a.getCreateTime() == null && b.getCreateTime() == null) return 0;
+                    if (a.getCreateTime() == null) return 1;
+                    if (b.getCreateTime() == null) return -1;
+                    return a.getCreateTime().compareTo(b.getCreateTime());
+                })
+                .collect(Collectors.toList());
+    }
+
     /**
      * 从 BPMN XML 中提取用户任务配置信息（用于调试）
      */

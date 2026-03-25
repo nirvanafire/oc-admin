@@ -137,6 +137,12 @@ public class WorkflowController {
         return Result.success(workflowService.getRequest(id));
     }
 
+    @GetMapping("/requests/{id}/tasks")
+    @PreAuthorize("hasAuthority('workflow:request')")
+    public Result<List<TaskDTO>> getRequestTasks(@PathVariable Long id) {
+        return Result.success(workflowService.getRequestTasks(id));
+    }
+
     @PostMapping("/requests/{id}/cancel")
     @PreAuthorize("hasAuthority('workflow:request')")
     public Result<ApprovalRequest> cancelRequest(@PathVariable Long id) {

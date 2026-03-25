@@ -97,4 +97,9 @@ public interface WorkflowService {
      * 撤回申请（仅当申请被拒绝时可撤回，逻辑删除）
      */
     ApprovalRequest withdrawRequest(Long requestId, Long applicantId);
+
+    /**
+     * 获取申请的任务记录（审核历史）
+     */
+    List<TaskDTO> getRequestTasks(Long requestId);
 }

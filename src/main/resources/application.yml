@@ -59,6 +59,28 @@ flowable:
         enabled: false
   db-schema-update: true
 
+# Actuator 配置 - Kubernetes 健康检查
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+    db:
+      enabled: true
+    redis:
+      enabled: true
+
 logging:
   level:
     com.nirvanafire.ocadmin: DEBUG
