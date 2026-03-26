@@ -1,6 +1,7 @@
 package com.nirvanafire.ocadmin.repository;
 
 import com.nirvanafire.ocadmin.entity.SysUserDept;
+import com.nirvanafire.ocadmin.entity.SysUserDeptId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -8,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface UserDeptRepository extends JpaRepository<SysUserDept, Long> {
+public interface UserDeptRepository extends JpaRepository<SysUserDept, SysUserDeptId> {
 
     @Query("SELECT ud.userId FROM SysUserDept ud WHERE ud.deptId = ?1")
     List<Long> findUserIdsByDeptId(Long deptId);
