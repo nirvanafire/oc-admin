@@ -40,6 +40,9 @@ public class ApprovalNode {
     @Column(name = "approver_role", length = 50)
     private String approverRole;
 
+    @Column(name = "approver_dept_id")
+    private Long approverDeptId;
+
     @CreatedDate
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;

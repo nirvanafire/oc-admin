@@ -148,7 +148,13 @@ INSERT INTO sys_permission (code, name, permission_type, category, permission_so
 ('permission:update', '修改权限', 'button', 'permission', 3),
 ('permission:delete', '删除权限', 'button', 'permission', 4),
 ('config:list', '配置列表', 'button', 'system', 1),
-('config:update', '修改配置', 'button', 'system', 2);
+('config:update', '修改配置', 'button', 'system', 2),
+-- 部门管理权限
+('dept:list', '部门列表', 'button', 'dept', 1),
+('dept:create', '创建部门', 'button', 'dept', 2),
+('dept:update', '修改部门', 'button', 'dept', 3),
+('dept:delete', '删除部门', 'button', 'dept', 4),
+('dept:view', '查看部门', 'button', 'dept', 5);
 
 -- 创建默认菜单
 INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_sort, visible) VALUES
@@ -157,7 +163,29 @@ INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_so
 ('角色管理', '/system/roles', '/system/roles/index', 'menu', 'UserFilled', 1, 2, '1'),
 ('菜单管理', '/system/menus', '/system/menus/index', 'menu', 'Menu', 1, 3, '1'),
 ('权限管理', '/system/permissions', '/system/permissions/index', 'menu', 'Lock', 1, 4, '1'),
-('系统配置', '/system/configs', '/system/configs/index', 'menu', 'Tools', 1, 5, '1');
+('系统配置', '/system/configs', '/system/configs/index', 'menu', 'Tools', 1, 5, '1'),
+-- 部门管理菜单
+('部门管理', '/system/depts', '/system/depts/index', 'menu', 'OfficeBuilding', 1, 6, '1');
+
+-- ============================================
+-- 部门基础数据（3级结构：公司 -> 部门 -> 小组）
+-- ============================================
+
+INSERT INTO sys_dept (dept_name, dept_code, parent_id, sort_order, status, description) VALUES
+('总公司', 'HQ', 0, 1, 1, '总公司'),
+('技术部', 'TECH', 1, 1, 1, '技术研发部门'),
+('产品部', 'PRODUCT', 1, 2, 1, '产品设计部门'),
+('运营部', 'OPS', 1, 3, 1, '运营管理部门');
+
+-- 设置技术部ID
+SET @tech_dept_id = (SELECT LAST_INSERT_ID());
+
+INSERT INTO sys_dept (dept_name, dept_code, parent_id, sort_order, status, description) VALUES
+('前端组', 'TECH-FE', @tech_dept_id, 1, 1, '前端开发组'),
+('后端组', 'TECH-BE', @tech_dept_id, 2, 1, '后端开发组');
+
+-- 将admin用户分配到总公司
+INSERT INTO sys_user_dept (user_id, dept_id) VALUES (1, 1);
 
 -- 设置工作流目录的父菜单ID变量
 SET @workflow_parent_id = (SELECT LAST_INSERT_ID());
@@ -184,6 +212,10 @@ SELECT 1, id FROM sys_permission;
 -- 关联超级管理员和所有菜单
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 1, id FROM sys_menu;
+
+-- 关联超级管理员和部门管理权限
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE code LIKE 'dept:%';
 
 -- ============================================
 -- 迁移脚本：已有数据库执行以下语句

@@ -43,6 +43,9 @@ public class ApprovalRequest {
     @Column(name = "applicant_email", length = 100)
     private String applicantEmail;
 
+    @Column(name = "applicant_dept_id")
+    private Long applicantDeptId;
+
     @Column(name = "current_node", length = 100)
     private String currentNode;
 

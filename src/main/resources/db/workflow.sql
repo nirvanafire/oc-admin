@@ -74,3 +74,51 @@ CREATE TABLE IF NOT EXISTS wf_approval_task (
     INDEX idx_assignee_id (assignee_id),
     INDEX idx_task_status (task_status)
 );
+
+-- ============================================
+-- 部门管理相关表（无外键约束）
+-- ============================================
+
+-- 部门表（树形结构）
+CREATE TABLE IF NOT EXISTS sys_dept (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    parent_id BIGINT DEFAULT 0 COMMENT '父部门ID，0=顶级',
+    dept_name VARCHAR(100) NOT NULL,
+    dept_code VARCHAR(50) UNIQUE COMMENT '部门编码',
+    manager_id BIGINT COMMENT '部门负责人用户ID',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    status TINYINT DEFAULT 1 COMMENT '1:启用, 0:禁用',
+    description VARCHAR(255) COMMENT '描述',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_parent_id (parent_id),
+    INDEX idx_manager_id (manager_id)
+);
+
+-- 用户-部门关联表（无外键）
+CREATE TABLE IF NOT EXISTS sys_user_dept (
+    user_id BIGINT NOT NULL,
+    dept_id BIGINT NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, dept_id),
+    INDEX idx_dept_id (dept_id)
+);
+
+-- 部门-角色关联表（无外键，部门级角色）
+CREATE TABLE IF NOT EXISTS sys_dept_role (
+    dept_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (dept_id, role_id),
+    INDEX idx_role_id (role_id)
+);
+
+-- ============================================
+-- 工作流表扩展字段
+-- ============================================
+
+-- 为wf_approval_node表添加审批部门字段
+ALTER TABLE wf_approval_node ADD COLUMN approver_dept_id BIGINT COMMENT '审批部门ID（当approver_type=DEPT时）';
+
+-- 为wf_approval_request表添加申请人部门字段
+ALTER TABLE wf_approval_request ADD COLUMN applicant_dept_id BIGINT COMMENT '申请人部门ID';

@@ -5,16 +5,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nirvanafire.ocadmin.common.exception.BusinessException;
 import com.nirvanafire.ocadmin.dto.ApprovalRequestDTO;
 import com.nirvanafire.ocadmin.dto.TaskDTO;
+import com.nirvanafire.ocadmin.entity.ApprovalNode;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
 import com.nirvanafire.ocadmin.entity.ApprovalRequestData;
 import com.nirvanafire.ocadmin.entity.ApprovalTask;
 import com.nirvanafire.ocadmin.entity.ProcessDefinition;
+import com.nirvanafire.ocadmin.entity.SysDept;
 import com.nirvanafire.ocadmin.entity.SysRole;
 import com.nirvanafire.ocadmin.entity.SysUser;
 import com.nirvanafire.ocadmin.repository.ApprovalNodeRepository;
 import com.nirvanafire.ocadmin.repository.ApprovalRequestDataRepository;
 import com.nirvanafire.ocadmin.repository.ApprovalRequestRepository;
 import com.nirvanafire.ocadmin.repository.ApprovalTaskRepository;
+import com.nirvanafire.ocadmin.repository.DeptRepository;
 import com.nirvanafire.ocadmin.repository.ProcessDefinitionRepository;
 import com.nirvanafire.ocadmin.repository.UserRepository;
 import com.nirvanafire.ocadmin.service.EmailService;
@@ -50,6 +53,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     private final ApprovalTaskRepository approvalTaskRepository;
     private final ApprovalNodeRepository approvalNodeRepository;
     private final UserRepository userRepository;
+    private final DeptRepository deptRepository;
     private final ProcessEngine processEngine;
     private final RuntimeService runtimeService;
     private final TaskService taskService;
@@ -915,6 +919,60 @@ public class WorkflowServiceImpl implements WorkflowService {
                     return a.getCreateTime().compareTo(b.getCreateTime());
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 根据审批节点配置解析审批人
+     * @param node 审批节点
+     * @param applicantDeptId 申请人部门ID（用于DEPT_MANAGER类型）
+     * @return 审批人列表
+     */
+    public List<SysUser> resolveApprovers(ApprovalNode node, Long applicantDeptId) {
+        String approverType = node.getApproverType();
+
+        switch (approverType) {
+            case "USER" -> {
+                if (node.getApproverIds() == null || node.getApproverIds().isEmpty()) {
+                    throw new BusinessException("USER类型审批节点必须指定用户");
+                }
+                String[] userIds = node.getApproverIds().split(",");
+                List<SysUser> users = new java.util.ArrayList<>();
+                for (String userIdStr : userIds) {
+                    Long userId = Long.parseLong(userIdStr.trim());
+                    userRepository.findById(userId).ifPresent(users::add);
+                }
+                return users;
+            }
+            case "ROLE" -> {
+                if (node.getApproverRole() == null || node.getApproverRole().isEmpty()) {
+                    throw new BusinessException("ROLE类型审批节点必须指定角色");
+                }
+                return userRepository.findAll().stream()
+                        .filter(u -> u.getRoles().stream()
+                                .anyMatch(r -> r.getCode().equals(node.getApproverRole())))
+                        .collect(Collectors.toList());
+            }
+            case "DEPT" -> {
+                if (node.getApproverDeptId() == null) {
+                    throw new BusinessException("DEPT类型审批节点必须指定部门");
+                }
+                return userRepository.findByDeptId(node.getApproverDeptId());
+            }
+            case "DEPT_MANAGER" -> {
+                if (applicantDeptId == null) {
+                    throw new BusinessException("DEPT_MANAGER类型需要申请人部门信息");
+                }
+                SysDept dept = deptRepository.findById(applicantDeptId)
+                        .orElseThrow(() -> new BusinessException("部门不存在: " + applicantDeptId));
+                if (dept.getManagerId() == null) {
+                    throw new BusinessException("该部门未指定负责人");
+                }
+                return userRepository.findById(dept.getManagerId())
+                        .map(java.util.List::of)
+                        .orElseThrow(() -> new BusinessException("部门负责人不存在"));
+            }
+            default -> throw new BusinessException("不支持的审批人类型: " + approverType);
+        }
     }
 
     /**
