@@ -2,6 +2,7 @@ package com.nirvanafire.ocadmin.controller;
 
 import com.nirvanafire.ocadmin.common.Result;
 import com.nirvanafire.ocadmin.dto.ApprovalRequestDTO;
+import com.nirvanafire.ocadmin.dto.SubmitRequestResponse;
 import com.nirvanafire.ocadmin.dto.TaskDTO;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
 import com.nirvanafire.ocadmin.entity.ApprovalTask;
@@ -101,7 +102,7 @@ public class WorkflowController {
 
     @PostMapping("/requests")
     @PreAuthorize("hasAuthority('workflow:request')")
-    public Result<ApprovalRequest> submitRequest(@RequestBody Map<String, Object> request) {
+    public Result<SubmitRequestResponse> submitRequest(@RequestBody Map<String, Object> request) {
         String username = SecurityUtils.getCurrentUsername();
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
@@ -111,7 +112,7 @@ public class WorkflowController {
         @SuppressWarnings("unchecked")
         Map<String, Object> formData = (Map<String, Object>) request.get("formData");
 
-        ApprovalRequest result = workflowService.submitRequest(
+        SubmitRequestResponse result = workflowService.submitRequest(
                 user.getId(),
                 user.getNickname() != null ? user.getNickname() : user.getUsername(),
                 user.getEmail(),

@@ -64,40 +64,32 @@ CREATE TABLE IF NOT EXISTS sys_menu (
     INDEX idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统菜单表';
 
--- 用户角色关联表
+-- 用户角色关联表（无外键约束，由应用层保证数据完整性）
 CREATE TABLE IF NOT EXISTS sys_user_role (
     user_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
-    PRIMARY KEY (user_id, role_id),
-    FOREIGN KEY (user_id) REFERENCES sys_user(id) ON DELETE CASCADE,
-    FOREIGN KEY (role_id) REFERENCES sys_role(id) ON DELETE CASCADE
+    PRIMARY KEY (user_id, role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
 
--- 角色权限关联表
+-- 角色权限关联表（无外键约束，由应用层保证数据完整性）
 CREATE TABLE IF NOT EXISTS sys_role_permission (
     role_id BIGINT NOT NULL,
     permission_id BIGINT NOT NULL,
-    PRIMARY KEY (role_id, permission_id),
-    FOREIGN KEY (role_id) REFERENCES sys_role(id) ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES sys_permission(id) ON DELETE CASCADE
+    PRIMARY KEY (role_id, permission_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';
 
--- 角色菜单关联表
+-- 角色菜单关联表（无外键约束，由应用层保证数据完整性）
 CREATE TABLE IF NOT EXISTS sys_role_menu (
     role_id BIGINT NOT NULL,
     menu_id BIGINT NOT NULL,
-    PRIMARY KEY (role_id, menu_id),
-    FOREIGN KEY (role_id) REFERENCES sys_role(id) ON DELETE CASCADE,
-    FOREIGN KEY (menu_id) REFERENCES sys_menu(id) ON DELETE CASCADE
+    PRIMARY KEY (role_id, menu_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色菜单关联表';
 
--- 菜单权限关联表
+-- 菜单权限关联表（无外键约束，由应用层保证数据完整性）
 CREATE TABLE IF NOT EXISTS sys_menu_permission (
     menu_id BIGINT NOT NULL,
     permission_id BIGINT NOT NULL,
-    PRIMARY KEY (menu_id, permission_id),
-    FOREIGN KEY (menu_id) REFERENCES sys_menu(id) ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES sys_permission(id) ON DELETE CASCADE
+    PRIMARY KEY (menu_id, permission_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='菜单权限关联表';
 
 -- 系统配置表
@@ -218,6 +210,19 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, id FROM sys_permission WHERE code LIKE 'dept:%';
 
 -- ============================================
+-- 部门级别字段迁移脚本（最高级为1：公司 -> 2：事业部 -> 3：部门 -> 4：小组）
+-- ============================================
+-- ALTER TABLE sys_dept ADD COLUMN level INT DEFAULT 0 COMMENT '部门级别（最高级为1）';
+--
+-- -- 更新现有部门级别（根据 parent_id 层级推算）
+-- -- 总公司（parent_id=0）为1级
+-- UPDATE sys_dept SET level = 1 WHERE parent_id = 0;
+-- -- parent_id=1 的部门为2级（总公司下面的部门）
+-- UPDATE sys_dept SET level = 2 WHERE parent_id IN (SELECT id FROM sys_dept WHERE parent_id = 0);
+-- -- 再往下的为3级
+-- UPDATE sys_dept SET level = 3 WHERE level = 0 AND parent_id NOT IN (SELECT id FROM sys_dept WHERE parent_id = 0);
+
+-- ============================================
 -- 迁移脚本：已有数据库执行以下语句
 -- ============================================
 -- ALTER TABLE sys_permission ADD COLUMN category VARCHAR(50) DEFAULT NULL COMMENT '权限分类';
@@ -299,3 +304,31 @@ SELECT 1, id FROM sys_permission WHERE code LIKE 'dept:%';
 -- ('watermark.enabled', 'true', '是否启用水印'),
 -- ('watermark.text', 'oc-admin', '水印文字')
 -- WHERE NOT EXISTS (SELECT 1 FROM sys_config WHERE config_key = 'storage.type');
+
+-- ============================================
+-- 移除所有表外键约束的迁移脚本
+-- ============================================
+-- 注意：先删除外键约束，再删除关联表中的数据时不会级联删除，请谨慎操作
+
+-- 1. 先删除 sys_user_role 表的外键（如果有）
+-- ALTER TABLE sys_user_role DROP FOREIGN KEY sys_user_role_ibfk_1;
+-- ALTER TABLE sys_user_role DROP FOREIGN KEY sys_user_role_ibfk_2;
+
+-- 2. 先删除 sys_role_permission 表的外键（如果有）
+-- ALTER TABLE sys_role_permission DROP FOREIGN KEY sys_role_permission_ibfk_1;
+-- ALTER TABLE sys_role_permission DROP FOREIGN KEY sys_role_permission_ibfk_2;
+
+-- 3. 先删除 sys_role_menu 表的外键（如果有）
+-- ALTER TABLE sys_role_menu DROP FOREIGN KEY sys_role_menu_ibfk_1;
+-- ALTER TABLE sys_role_menu DROP FOREIGN KEY sys_role_menu_ibfk_2;
+
+-- 4. 先删除 sys_menu_permission 表的外键（如果有）
+-- ALTER TABLE sys_menu_permission DROP FOREIGN KEY sys_menu_permission_ibfk_1;
+-- ALTER TABLE sys_menu_permission DROP FOREIGN KEY sys_menu_permission_ibfk_2;
+
+-- 5. 如果需要保留关联表数据（不清空数据），不需要执行以下语句
+-- 如果需要清空关联表数据，使用以下语句（注意：这将删除所有关联数据）
+-- DELETE FROM sys_user_role;
+-- DELETE FROM sys_role_permission;
+-- DELETE FROM sys_role_menu;
+-- DELETE FROM sys_menu_permission;

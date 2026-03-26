@@ -1,6 +1,7 @@
 package com.nirvanafire.ocadmin.service;
 
 import com.nirvanafire.ocadmin.dto.ApprovalRequestDTO;
+import com.nirvanafire.ocadmin.dto.SubmitRequestResponse;
 import com.nirvanafire.ocadmin.dto.TaskDTO;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
 import com.nirvanafire.ocadmin.entity.ApprovalTask;
@@ -39,7 +40,7 @@ public interface WorkflowService {
     /**
      * 提交审核申请
      */
-    ApprovalRequest submitRequest(Long applicantId, String applicantName, String applicantEmail,
+    SubmitRequestResponse submitRequest(Long applicantId, String applicantName, String applicantEmail,
                                    String title, String processKey, Map<String, Object> formData);
 
     /**

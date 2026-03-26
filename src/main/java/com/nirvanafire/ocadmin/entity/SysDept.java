@@ -37,6 +37,10 @@ public class SysDept {
     @Column(name = "manager_id")
     private Long managerId;
 
+    @Column(name = "level")
+    @Builder.Default
+    private Integer level = 0;
+
     @Column(name = "sort_order")
     @Builder.Default
     private Integer sortOrder = 0;

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nirvanafire.ocadmin.common.exception.BusinessException;
 import com.nirvanafire.ocadmin.dto.ApprovalRequestDTO;
+import com.nirvanafire.ocadmin.dto.SubmitRequestResponse;
 import com.nirvanafire.ocadmin.dto.TaskDTO;
 import com.nirvanafire.ocadmin.entity.ApprovalNode;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
@@ -39,6 +40,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -228,7 +230,7 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Override
     @Transactional
-    public ApprovalRequest submitRequest(Long applicantId, String applicantName, String applicantEmail,
+    public SubmitRequestResponse submitRequest(Long applicantId, String applicantName, String applicantEmail,
                                          String title, String processKey, Map<String, Object> formData) {
         ProcessDefinition processDef = processDefinitionRepository
                 .findTopByProcessKeyAndStatusOrderByVersionDesc(processKey, 1)
@@ -313,11 +315,40 @@ public class WorkflowServiceImpl implements WorkflowService {
                 .build();
         approvalRequestDataRepository.save(requestData);
 
+        // 获取部门负责人ID（如果流程中有 DEPT_MANAGER 节点）
+        // 注意：目前从主部门获取负责人，跨部门审批和级别指定需要在 ApprovalNode 配置后完善
+        Long deptManagerId = null;
+        if (processDef.getXml() != null && processDef.getXml().contains("DEPT_MANAGER")) {
+            log.info("检测到 DEPT_MANAGER 节点，开始解析审批人配置");
+        }
+
         List<Task> tasks = taskService.createTaskQuery()
                 .processInstanceId(processInstance.getId())
                 .list();
 
         for (Task task : tasks) {
+            // 检查该任务是否为 DEPT_MANAGER 类型，如果是则动态设置审批人
+            if (isDeptManagerTask(task.getTaskDefinitionKey(), processDef.getXml())) {
+                // 从 BPMN XML 的 camunda:nodedata 中读取配置
+                NodeConfig nodeConfig = extractNodeConfig(task.getTaskDefinitionKey(), processDef.getXml());
+
+                if (nodeConfig != null && "DEPT_MANAGER".equals(nodeConfig.approverType)) {
+                    // 使用 BPMN XML 中的 approverDeptId 配置解析审批人
+                    deptManagerId = resolveDeptManagerIdWithLevel(applicantId, nodeConfig.approverDeptId);
+                    log.info("根据 BPMN XML 配置解析 DEPT_MANAGER 审批人: taskId={}, nodeKey={}, approverDeptId={}, managerId={}",
+                            task.getId(), task.getTaskDefinitionKey(), nodeConfig.approverDeptId, deptManagerId);
+                } else {
+                    // 如果没有配置，使用主部门负责人（向后兼容）
+                    deptManagerId = resolveDeptManagerId(applicantId, null);
+                    log.info("未找到 DEPT_MANAGER 配置，使用主部门负责人: taskId={}, managerId={}", task.getId(), deptManagerId);
+                }
+
+                if (deptManagerId != null) {
+                    taskService.setAssignee(task.getId(), String.valueOf(deptManagerId));
+                    log.info("为 DEPT_MANAGER 任务设置审批人: taskId={}, assignee={}", task.getId(), deptManagerId);
+                }
+            }
+
             ApprovalTask approvalTask = createApprovalTask(request.getId(), task);
             approvalTaskRepository.save(approvalTask);
 
@@ -333,7 +364,37 @@ public class WorkflowServiceImpl implements WorkflowService {
         }
 
         log.info("审核申请已提交: requestId={}, processInstanceId={}", request.getId(), processInstance.getId());
-        return request;
+
+        // 构建返回响应，包含下一个审核任务信息
+        List<ApprovalTask> savedTasks = approvalTaskRepository.findByRequestId(request.getId());
+        List<SubmitRequestResponse.PendingTaskInfo> pendingTaskInfos = savedTasks.stream()
+                .filter(t -> "PENDING".equals(t.getTaskStatus()))
+                .map(t -> SubmitRequestResponse.PendingTaskInfo.builder()
+                        .taskId(t.getTaskId())
+                        .assigneeId(t.getAssigneeId())
+                        .assigneeName(t.getAssigneeName())
+                        .assigneeEmail(t.getAssigneeEmail())
+                        .build())
+                .collect(Collectors.toList());
+
+        return SubmitRequestResponse.builder()
+                .id(request.getId())
+                .processInstanceId(request.getProcessInstanceId())
+                .businessKey(request.getBusinessKey())
+                .processKey(request.getProcessKey())
+                .title(request.getTitle())
+                .applicantId(request.getApplicantId())
+                .applicantName(request.getApplicantName())
+                .applicantEmail(request.getApplicantEmail())
+                .currentNode(request.getCurrentNode())
+                .currentNodeName(request.getCurrentNodeName())
+                .status(request.getStatus())
+                .formData(formDataJson)
+                .createTime(request.getCreateTime())
+                .updateTime(request.getUpdateTime())
+                .completeTime(request.getCompleteTime())
+                .pendingTasks(pendingTaskInfos)
+                .build();
     }
 
     @Override
@@ -973,6 +1034,229 @@ public class WorkflowServiceImpl implements WorkflowService {
             }
             default -> throw new BusinessException("不支持的审批人类型: " + approverType);
         }
+    }
+
+    /**
+     * 根据用户ID获取其部门负责人ID
+     * @param userId 用户ID
+     * @param approverDeptId 指定的审批部门ID（跨部门审批时使用）
+     * @return 部门负责人ID，如果用户没有部门或部门没有负责人则返回null
+     */
+    private Long resolveDeptManagerId(Long userId, Long approverDeptId) {
+        // 如果指定了审批部门，直接使用该部门的领导
+        if (approverDeptId != null) {
+            SysDept dept = deptRepository.findById(approverDeptId).orElse(null);
+            if (dept == null) {
+                log.warn("指定的审批部门 {} 不存在", approverDeptId);
+                return null;
+            }
+            if (dept.getManagerId() == null) {
+                log.warn("指定的审批部门 {} 未指定负责人", approverDeptId);
+                return null;
+            }
+            log.info("跨部门审批，使用部门 {} 的负责人 {}", approverDeptId, dept.getManagerId());
+            return dept.getManagerId();
+        }
+
+        // 否则从用户的部门链中查找
+        List<Long> deptIds = userRepository.findDeptIdsByUserId(userId);
+        if (deptIds == null || deptIds.isEmpty()) {
+            log.warn("用户 {} 未分配任何部门", userId);
+            return null;
+        }
+
+        // 获取用户的主部门（第一个部门）
+        Long deptId = deptIds.get(0);
+        SysDept dept = deptRepository.findById(deptId).orElse(null);
+        if (dept == null) {
+            log.warn("部门 {} 不存在", deptId);
+            return null;
+        }
+        if (dept.getManagerId() == null) {
+            log.warn("部门 {} 未指定负责人", deptId);
+            return null;
+        }
+        log.info("用户 {} 的主部门 {} 的负责人是 {}", userId, deptId, dept.getManagerId());
+        return dept.getManagerId();
+    }
+
+    /**
+     * 根据用户ID和目标部门级别获取部门负责人ID
+     * @param userId 用户ID
+     * @param targetLevel 目标部门级别（1=公司级, 2=事业部级, 3=部门级, 4=小组级）
+     * @return 部门负责人ID，如果用户没有部门或部门没有负责人则返回null
+     */
+    private Long resolveDeptManagerIdByLevel(Long userId, Integer targetLevel) {
+        List<Long> deptIds = userRepository.findDeptIdsByUserId(userId);
+        if (deptIds == null || deptIds.isEmpty()) {
+            log.warn("用户 {} 未分配任何部门", userId);
+            return null;
+        }
+
+        // 构建用户的部门链（从主部门开始向上遍历）
+        Long primaryDeptId = deptIds.get(0);
+        Map<Long, SysDept> deptChain = new HashMap<>();
+        Set<Long> visited = new java.util.HashSet<>();
+
+        // 遍历部门链，构建从主部门到根部门的路径
+        Long currentDeptId = primaryDeptId;
+        while (currentDeptId != null && !visited.contains(currentDeptId)) {
+            visited.add(currentDeptId);
+            SysDept currentDept = deptRepository.findById(currentDeptId).orElse(null);
+            if (currentDept == null) {
+                break;
+            }
+            deptChain.put(currentDept.getId(), currentDept);
+
+            // 检查是否达到目标级别
+            if (targetLevel != null && currentDept.getLevel() != null && currentDept.getLevel().equals(targetLevel)) {
+                if (currentDept.getManagerId() != null) {
+                    log.info("用户 {} 在部门链中找到级别 {} 的部门 {}，负责人是 {}",
+                            userId, targetLevel, currentDept.getId(), currentDept.getManagerId());
+                    return currentDept.getManagerId();
+                } else {
+                    log.warn("用户 {} 的部门链中级别 {} 的部门 {} 未指定负责人，继续向上查找",
+                            userId, targetLevel, currentDept.getId());
+                }
+            }
+
+            currentDeptId = currentDept.getParentId();
+        }
+
+        // 如果没有找到指定级别的部门，返回主部门的负责人
+        log.info("用户 {} 部门链中未找到级别 {} 的部门，使用主部门 {} 的负责人",
+                userId, targetLevel, primaryDeptId);
+        SysDept primaryDept = deptRepository.findById(primaryDeptId).orElse(null);
+        if (primaryDept != null && primaryDept.getManagerId() != null) {
+            return primaryDept.getManagerId();
+        }
+
+        return null;
+    }
+
+    /**
+     * 根据用户ID和部门配置获取部门负责人ID
+     * 支持跨部门审批和级别指定
+     * @param userId 用户ID
+     * @param approverDeptId 指定的审批部门ID（跨部门审批时使用，如果为null则按申请人部门链查找）
+     * @return 部门负责人ID，如果用户没有部门或部门没有负责人则返回null
+     */
+    private Long resolveDeptManagerIdWithLevel(Long userId, Long approverDeptId) {
+        // 如果指定了审批部门，直接使用该部门的领导（跨部门审批场景，如财务部审批报销）
+        if (approverDeptId != null) {
+            SysDept dept = deptRepository.findById(approverDeptId).orElse(null);
+            if (dept == null) {
+                log.warn("指定的审批部门 {} 不存在", approverDeptId);
+                return null;
+            }
+            if (dept.getManagerId() == null) {
+                log.warn("指定的审批部门 {} 未指定负责人", approverDeptId);
+                return null;
+            }
+            log.info("跨部门审批，使用部门 {} ({}) 的负责人 {}",
+                    approverDeptId, dept.getDeptName(), dept.getManagerId());
+            return dept.getManagerId();
+        }
+
+        // 否则从用户的部门链中查找主部门的领导
+        List<Long> deptIds = userRepository.findDeptIdsByUserId(userId);
+        if (deptIds == null || deptIds.isEmpty()) {
+            log.warn("用户 {} 未分配任何部门", userId);
+            return null;
+        }
+
+        Long primaryDeptId = deptIds.get(0);
+        SysDept dept = deptRepository.findById(primaryDeptId).orElse(null);
+        if (dept == null) {
+            log.warn("部门 {} 不存在", primaryDeptId);
+            return null;
+        }
+        if (dept.getManagerId() == null) {
+            log.warn("部门 {} 未指定负责人", primaryDeptId);
+            return null;
+        }
+        log.info("用户 {} 的主部门 {} ({}) 的负责人是 {}",
+                userId, primaryDeptId, dept.getDeptName(), dept.getManagerId());
+        return dept.getManagerId();
+    }
+
+    /**
+     * 判断指定任务节点是否为 DEPT_MANAGER 类型
+     * @param taskDefinitionKey 任务的节点定义 key
+     * @param bpmnXml 流程的 BPMN XML
+     * @return 是否为 DEPT_MANAGER 类型
+     */
+    private boolean isDeptManagerTask(String taskDefinitionKey, String bpmnXml) {
+        if (bpmnXml == null || taskDefinitionKey == null) {
+            return false;
+        }
+        try {
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "<bpmn(?:2)?:userTask[^>]*id=\"" + java.util.regex.Pattern.quote(taskDefinitionKey) + "\"[^>]*>.*?</bpmn(?:2)?:userTask>",
+                java.util.regex.Pattern.DOTALL
+            );
+            java.util.regex.Matcher matcher = pattern.matcher(bpmnXml);
+            if (matcher.find()) {
+                String userTaskXml = matcher.group();
+                // 检查 camunda:nodedata 中是否包含 DEPT_MANAGER
+                java.util.regex.Pattern nodedataPattern = java.util.regex.Pattern.compile("camunda:nodedata=[\"']([^\"']+)[\"']");
+                java.util.regex.Matcher nodedataMatcher = nodedataPattern.matcher(userTaskXml);
+                if (nodedataMatcher.find()) {
+                    String nodedata = nodedataMatcher.group(1);
+                    return nodedata.contains("DEPT_MANAGER");
+                }
+            }
+        } catch (Exception e) {
+            log.warn("解析 BPMN XML 判断 DEPT_MANAGER 类型失败: {}", e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * 节点配置内部类
+     */
+    private static class NodeConfig {
+        String approverType;
+        String approverIds;
+        String approverRole;
+        Long approverDeptId;
+        String conditionExpression;
+    }
+
+    /**
+     * 从 BPMN XML 中提取指定节点的配置信息
+     * @param taskDefinitionKey 节点定义 key
+     * @param bpmnXml 流程的 BPMN XML
+     * @return 节点配置，如果未找到则返回 null
+     */
+    private NodeConfig extractNodeConfig(String taskDefinitionKey, String bpmnXml) {
+        if (bpmnXml == null || taskDefinitionKey == null) {
+            return null;
+        }
+        try {
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "<bpmn(?:2)?:userTask[^>]*id=\"" + java.util.regex.Pattern.quote(taskDefinitionKey) + "\"[^>]*>.*?</bpmn(?:2)?:userTask>",
+                java.util.regex.Pattern.DOTALL
+            );
+            java.util.regex.Matcher matcher = pattern.matcher(bpmnXml);
+            if (matcher.find()) {
+                String userTaskXml = matcher.group();
+                // 提取 camunda:nodedata
+                java.util.regex.Pattern nodedataPattern = java.util.regex.Pattern.compile("camunda:nodedata=[\"']([^\"']+)[\"']");
+                java.util.regex.Matcher nodedataMatcher = nodedataPattern.matcher(userTaskXml);
+                if (nodedataMatcher.find()) {
+                    String nodedata = nodedataMatcher.group(1);
+                    // URL 解码
+                    nodedata = java.net.URLDecoder.decode(nodedata, "UTF-8");
+                    // JSON 解析
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    return mapper.readValue(nodedata, NodeConfig.class);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("解析 BPMN XML 节点配置失败: taskKey={}, error={}", taskDefinitionKey, e.getMessage());
+        }
+        return null;
     }
 
     /**

@@ -22,4 +22,7 @@ public interface UserRepository extends JpaRepository<SysUser, Long> {
 
     @Query("SELECT u FROM SysUser u JOIN SysUserDept ud ON u.id = ud.userId WHERE ud.deptId = :deptId")
     Page<SysUser> findByDeptId(@Param("deptId") Long deptId, Pageable pageable);
+
+    @Query("SELECT ud.deptId FROM SysUserDept ud WHERE ud.userId = :userId")
+    List<Long> findDeptIdsByUserId(@Param("userId") Long userId);
 }
