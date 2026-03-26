@@ -64,11 +64,14 @@ mvn test jacoco:report
 - **SysRole** - 角色（如 ADMIN、USER）
 - **SysPermission** - 权限代码（如 user:list、user:create）
 - **SysMenu** - 菜单项，用于动态路由
+- **SysDept** - 部门表，树形结构（parent_id 自引用）
+- **SysUserDept** - 用户-部门关联（联合主键）
+- **SysDeptRole** - 部门-角色关联（联合主键，部门级角色）
 - **ProcessDefinition** - 流程定义，存储 BPMN XML
 - **ApprovalRequest** - 审核申请记录（不含表单数据）
 - **ApprovalRequestData** - 审核申请数据，存储表单 JSON（与 ApprovalRequest 通过 requestId 关联，无外键约束）
 - **ApprovalTask** - 审核任务记录
-- **ApprovalNode** - 审核节点配置
+- **ApprovalNode** - 审核节点配置（支持 USER/ROLE/DEPT/DEPT_MANAGER 四种审批人类型）
 
 ## 配置
 
@@ -105,6 +108,21 @@ mvn test jacoco:report
 - `POST /api/menus` - 创建菜单（需要 menu:create 权限）
 - `PUT /api/menus/{id}` - 更新菜单（需要 menu:update 权限）
 - `DELETE /api/menus/{id}` - 删除菜单（需要 menu:delete 权限）
+
+### 部门管理
+- `GET /api/depts` - 部门列表（分页+搜索，需要 dept:list 权限）
+- `GET /api/depts/all` - 获取全部部门（需要 dept:list 权限）
+- `GET /api/depts/tree` - 获取部门树形结构（需要 dept:list 权限）
+- `GET /api/depts/{id}` - 获取部门详情（需要 dept:view 权限）
+- `POST /api/depts` - 创建部门（需要 dept:create 权限）
+- `PUT /api/depts/{id}` - 更新部门（需要 dept:update 权限）
+- `DELETE /api/depts/{id}` - 删除部门（需要 dept:delete 权限）
+- `GET /api/depts/{id}/users` - 获取部门下用户列表（需要 dept:list 权限）
+- `GET /api/depts/{id}/roles` - 获取部门关联角色列表（需要 dept:list 权限）
+- `POST /api/depts/{id}/users/{userId}` - 添加用户到部门（需要 dept:update 权限）
+- `DELETE /api/depts/{id}/users/{userId}` - 从部门移除用户（需要 dept:update 权限）
+- `POST /api/depts/{id}/roles/{roleId}` - 为部门分配角色（需要 dept:update 权限）
+- `DELETE /api/depts/{id}/roles/{roleId}` - 取消部门角色（需要 dept:update 权限）
 
 ### 工作流管理
 - `POST /api/workflow/deploy` - 部署流程（需要 workflow:deploy 权限）
@@ -143,6 +161,16 @@ mvn test jacoco:report
 - 用户提交申请后创建 `ApprovalRequest` 记录
 - 系统自动创建 `ApprovalTask` 任务分配给审核人
 - 审核人通过/拒绝后，系统自动处理后续节点或结束流程
+
+### 审批人类型
+审批节点 (`ApprovalNode`) 支持四种审批人类型：
+
+| 类型 | 字段 | 说明 |
+|------|------|------|
+| `USER` | approver_ids | 指定用户 ID 列表（逗号分隔） |
+| `ROLE` | approver_role | 指定角色代码，查询拥有该角色的所有用户 |
+| `DEPT` | approver_dept_id | 指定部门，查询该部门下所有用户 |
+| `DEPT_MANAGER` | applicant_dept_id | 申请人所在部门的负责人 |
 
 ### 表结构设计原则
 
