@@ -1,6 +1,7 @@
 package com.nirvanafire.ocadmin.controller;
 
 import com.nirvanafire.ocadmin.common.Result;
+import com.nirvanafire.ocadmin.dto.ApprovalRequestDTO;
 import com.nirvanafire.ocadmin.dto.TaskDTO;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
 import com.nirvanafire.ocadmin.entity.ApprovalTask;
@@ -133,7 +134,7 @@ public class WorkflowController {
 
     @GetMapping("/requests/{id}")
     @PreAuthorize("hasAuthority('workflow:request')")
-    public Result<ApprovalRequest> getRequest(@PathVariable Long id) {
+    public Result<ApprovalRequestDTO> getRequest(@PathVariable Long id) {
         return Result.success(workflowService.getRequest(id));
     }
 

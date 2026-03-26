@@ -3,12 +3,16 @@ package com.nirvanafire.ocadmin.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nirvanafire.ocadmin.common.exception.BusinessException;
+import com.nirvanafire.ocadmin.dto.ApprovalRequestDTO;
 import com.nirvanafire.ocadmin.dto.TaskDTO;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
+import com.nirvanafire.ocadmin.entity.ApprovalRequestData;
 import com.nirvanafire.ocadmin.entity.ApprovalTask;
 import com.nirvanafire.ocadmin.entity.ProcessDefinition;
+import com.nirvanafire.ocadmin.entity.SysRole;
 import com.nirvanafire.ocadmin.entity.SysUser;
 import com.nirvanafire.ocadmin.repository.ApprovalNodeRepository;
+import com.nirvanafire.ocadmin.repository.ApprovalRequestDataRepository;
 import com.nirvanafire.ocadmin.repository.ApprovalRequestRepository;
 import com.nirvanafire.ocadmin.repository.ApprovalTaskRepository;
 import com.nirvanafire.ocadmin.repository.ProcessDefinitionRepository;
@@ -42,6 +46,7 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     private final ProcessDefinitionRepository processDefinitionRepository;
     private final ApprovalRequestRepository approvalRequestRepository;
+    private final ApprovalRequestDataRepository approvalRequestDataRepository;
     private final ApprovalTaskRepository approvalTaskRepository;
     private final ApprovalNodeRepository approvalNodeRepository;
     private final UserRepository userRepository;
@@ -106,6 +111,12 @@ public class WorkflowServiceImpl implements WorkflowService {
     @Override
     public List<ProcessDefinition> getProcessDefinitions() {
         return processDefinitionRepository.findByStatus(1).stream()
+                .sorted((a, b) -> {
+                    if (a.getCreateTime() == null && b.getCreateTime() == null) return 0;
+                    if (a.getCreateTime() == null) return 1;
+                    if (b.getCreateTime() == null) return -1;
+                    return b.getCreateTime().compareTo(a.getCreateTime());
+                })
                 .collect(Collectors.toList());
     }
 
@@ -271,6 +282,7 @@ public class WorkflowServiceImpl implements WorkflowService {
         String formDataJson = null;
         try {
             formDataJson = objectMapper.writeValueAsString(formData);
+            log.info("表单数据: {}", formDataJson);
         } catch (JsonProcessingException e) {
             log.error("表单数据序列化失败", e);
         }
@@ -286,10 +298,16 @@ public class WorkflowServiceImpl implements WorkflowService {
                 .currentNode("")
                 .currentNodeName("提交申请")
                 .status("PENDING")
-                .formData(formDataJson)
                 .build();
 
         request = approvalRequestRepository.save(request);
+
+        // 保存表单数据到独立表
+        ApprovalRequestData requestData = ApprovalRequestData.builder()
+                .requestId(request.getId())
+                .formData(formDataJson)
+                .build();
+        approvalRequestDataRepository.save(requestData);
 
         List<Task> tasks = taskService.createTaskQuery()
                 .processInstanceId(processInstance.getId())
@@ -324,9 +342,16 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
-    public ApprovalRequest getRequest(Long requestId) {
-        return approvalRequestRepository.findById(requestId)
+    public ApprovalRequestDTO getRequest(Long requestId) {
+        ApprovalRequest request = approvalRequestRepository.findById(requestId)
                 .orElseThrow(() -> new BusinessException("申请记录不存在"));
+        // 获取表单数据
+        String formData = null;
+        ApprovalRequestData requestData = approvalRequestDataRepository.findByRequestId(requestId).orElse(null);
+        if (requestData != null) {
+            formData = requestData.getFormData();
+        }
+        return ApprovalRequestDTO.fromEntity(request, formData);
     }
 
     @Override
@@ -334,10 +359,10 @@ public class WorkflowServiceImpl implements WorkflowService {
         // 1. 从数据库获取该用户被分配的任务
         List<ApprovalTask> assignedTasks;
         if (taskStatus == null || taskStatus.isEmpty()) {
-            // 默认只显示待审核和被拒绝的任务
+            // 默认显示待审核、已拒绝和已完成的审核任务
             assignedTasks = approvalTaskRepository.findAll().stream()
                     .filter(t -> assigneeId.equals(t.getAssigneeId())
-                            && ("PENDING".equals(t.getTaskStatus()) || "REJECTED".equals(t.getTaskStatus())))
+                            && ("PENDING".equals(t.getTaskStatus()) || "REJECTED".equals(t.getTaskStatus()) || "COMPLETED".equals(t.getTaskStatus())))
                     .collect(Collectors.toList());
         } else {
             // 按指定状态筛选
@@ -346,7 +371,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .collect(Collectors.toList());
         }
 
-        // 2. 从 Flowable 获取该用户参与的任务（assignee 或 candidate）
+        // 2. 从 Flowable 获取该用户参与的任务（assignee 或 candidate 或 candidate group）
         // 按 assignee 查询
         List<Task> assigneeTasks = taskService.createTaskQuery()
                 .taskAssignee(String.valueOf(assigneeId))
@@ -357,6 +382,20 @@ public class WorkflowServiceImpl implements WorkflowService {
                 .taskCandidateUser(String.valueOf(assigneeId))
                 .list();
 
+        // 按 candidate group（角色）查询
+        List<Task> candidateGroupTasks = new java.util.ArrayList<>();
+        SysUser currentUser = userRepository.findById(assigneeId).orElse(null);
+        if (currentUser != null && currentUser.getRoles() != null) {
+            for (SysRole role : currentUser.getRoles()) {
+                if (role.getCode() != null) {
+                    List<Task> groupTasks = taskService.createTaskQuery()
+                            .taskCandidateGroup(role.getCode())
+                            .list();
+                    candidateGroupTasks.addAll(groupTasks);
+                }
+            }
+        }
+
         // 合并并去重
         Set<String> processedTaskIds = assignedTasks.stream()
                 .map(ApprovalTask::getTaskId)
@@ -364,6 +403,11 @@ public class WorkflowServiceImpl implements WorkflowService {
 
         List<Task> allFlowableTasks = new java.util.ArrayList<>(assigneeTasks);
         for (Task task : candidateUserTasks) {
+            if (!processedTaskIds.contains(task.getId())) {
+                allFlowableTasks.add(task);
+            }
+        }
+        for (Task task : candidateGroupTasks) {
             if (!processedTaskIds.contains(task.getId())) {
                 allFlowableTasks.add(task);
             }
@@ -387,7 +431,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     newTask.setRequestId(null); // 需要通过 processInstanceId 查找
                     newTask.setTaskStatus("PENDING");
 
-                    // 优先使用 assignee，如果没有则设置当前用户为 assignee
+                    // 优先使用 assignee
                     String assignee = flowableTask.getAssignee();
                     if (assignee != null) {
                         try {
@@ -399,28 +443,23 @@ public class WorkflowServiceImpl implements WorkflowService {
                                 newTask.setAssigneeEmail(user.getEmail());
                             }
                         } catch (NumberFormatException e) {
-                            // assignee 不是数字ID，设置当前用户为 assignee
-                            newTask.setAssigneeId(assigneeId);
-                            SysUser user = userRepository.findById(assigneeId).orElse(null);
-                            if (user != null) {
-                                newTask.setAssigneeName(user.getNickname() != null ? user.getNickname() : user.getUsername());
-                            }
+                            log.warn("assigneeId格式错误: {}", assignee);
                         }
+                        approvalTaskRepository.save(newTask);
+                        taskToAdd = newTask;
                     } else {
-                        // 没有 assignee，设置当前用户为 assignee
-                        newTask.setAssigneeId(assigneeId);
-                        SysUser user = userRepository.findById(assigneeId).orElse(null);
-                        if (user != null) {
-                            newTask.setAssigneeName(user.getNickname() != null ? user.getNickname() : user.getUsername());
-                        }
+                        // assignee 为 null（candidateGroup 未 claim），设置当前用户为 assignee
+                        // 这样审核人员能在 getMyTasks 中看到任务（虽然 assigneeId 为空）
+                        // 等 completeTask 时再正确设置 assigneeId
+                        taskToAdd = null;
                     }
-
-                    approvalTaskRepository.save(newTask);
-                    taskToAdd = newTask;
                 } else {
                     taskToAdd = existingTasks.get(0);
                 }
-                assignedTasks.add(taskToAdd);
+                // 只有 taskToAdd 不为 null 时才添加（candidateGroup 任务 assignee 为空时不添加）
+                if (taskToAdd != null) {
+                    assignedTasks.add(taskToAdd);
+                }
             }
         }
 
@@ -451,11 +490,48 @@ public class WorkflowServiceImpl implements WorkflowService {
             throw new BusinessException("任务不存在或已处理");
         }
 
-        ApprovalTask approvalTask = approvalTaskRepository.findByTaskId(taskId)
-                .orElseThrow(() -> new BusinessException("任务记录不存在"));
+        // 查找 ApprovalTask 记录
+        ApprovalTask approvalTask = approvalTaskRepository.findByTaskId(taskId).orElse(null);
 
-        if (!"PENDING".equals(approvalTask.getTaskStatus())) {
-            throw new BusinessException("任务已处理");
+        // 如果 ApprovalTask 不存在（candidateGroup 任务在 claim 前没有记录），需要先 claim 并创建记录
+        if (approvalTask == null) {
+            // claim 任务
+            taskService.claim(taskId, String.valueOf(assigneeId));
+
+            // 通过 processInstanceId 查找对应的 ApprovalRequest
+            ApprovalRequest approvalRequest = approvalRequestRepository.findAll().stream()
+                    .filter(r -> task.getProcessInstanceId().equals(r.getProcessInstanceId()))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException("申请记录不存在"));
+
+            // 创建 ApprovalTask 记录
+            approvalTask = new ApprovalTask();
+            approvalTask.setTaskId(taskId);
+            approvalTask.setRequestId(approvalRequest.getId());
+            approvalTask.setAssigneeId(assigneeId);
+            approvalTask.setAssigneeName(assigneeName);
+            SysUser user = userRepository.findById(assigneeId).orElse(null);
+            if (user != null) {
+                approvalTask.setAssigneeEmail(user.getEmail());
+            }
+            approvalTask.setTaskStatus("PENDING");
+            approvalTask = approvalTaskRepository.save(approvalTask);
+        } else {
+            // 如果 ApprovalTask 存在但 assigneeId 为空（candidateGroup 任务），需要设置 assigneeId
+            if (approvalTask.getAssigneeId() == null) {
+                // claim 任务
+                taskService.claim(taskId, String.valueOf(assigneeId));
+                // 更新 assigneeId
+                approvalTask.setAssigneeId(assigneeId);
+                approvalTask.setAssigneeName(assigneeName);
+                SysUser user = userRepository.findById(assigneeId).orElse(null);
+                if (user != null) {
+                    approvalTask.setAssigneeEmail(user.getEmail());
+                }
+                approvalTask = approvalTaskRepository.save(approvalTask);
+            } else if (!"PENDING".equals(approvalTask.getTaskStatus())) {
+                throw new BusinessException("任务已处理");
+            }
         }
 
         Map<String, Object> variables = new HashMap<>();
@@ -562,7 +638,11 @@ public class WorkflowServiceImpl implements WorkflowService {
             ApprovalRequest request = approvalRequestRepository.findById(task.getRequestId()).orElse(null);
             if (request != null) {
                 requestTitle = request.getTitle();
-                formData = request.getFormData();
+                // 从独立表中获取表单数据
+                ApprovalRequestData requestData = approvalRequestDataRepository.findByRequestId(task.getRequestId()).orElse(null);
+                if (requestData != null) {
+                    formData = requestData.getFormData();
+                }
             }
         }
 

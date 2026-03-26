@@ -100,6 +100,16 @@ CREATE TABLE IF NOT EXISTS sys_menu_permission (
     FOREIGN KEY (permission_id) REFERENCES sys_permission(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='菜单权限关联表';
 
+-- 系统配置表
+CREATE TABLE IF NOT EXISTS sys_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(100) NOT NULL UNIQUE COMMENT '配置键',
+    config_value VARCHAR(500) COMMENT '配置值',
+    description VARCHAR(200) COMMENT '配置描述',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
+
 -- 初始化数据
 
 -- 创建默认管理员用户（密码：admin123）
@@ -136,7 +146,9 @@ INSERT INTO sys_permission (code, name, permission_type, category, permission_so
 ('permission:list', '权限列表', 'button', 'permission', 1),
 ('permission:create', '创建权限', 'button', 'permission', 2),
 ('permission:update', '修改权限', 'button', 'permission', 3),
-('permission:delete', '删除权限', 'button', 'permission', 4);
+('permission:delete', '删除权限', 'button', 'permission', 4),
+('config:list', '配置列表', 'button', 'system', 1),
+('config:update', '修改配置', 'button', 'system', 2);
 
 -- 创建默认菜单
 INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_sort, visible) VALUES
@@ -144,7 +156,8 @@ INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_so
 ('用户管理', '/system/users', '/system/users/index', 'menu', 'User', 1, 1, '1'),
 ('角色管理', '/system/roles', '/system/roles/index', 'menu', 'UserFilled', 1, 2, '1'),
 ('菜单管理', '/system/menus', '/system/menus/index', 'menu', 'Menu', 1, 3, '1'),
-('权限管理', '/system/permissions', '/system/permissions/index', 'menu', 'Lock', 1, 4, '1');
+('权限管理', '/system/permissions', '/system/permissions/index', 'menu', 'Lock', 1, 4, '1'),
+('系统配置', '/system/configs', '/system/configs/index', 'menu', 'Tools', 1, 5, '1');
 
 -- 设置工作流目录的父菜单ID变量
 SET @workflow_parent_id = (SELECT LAST_INSERT_ID());
@@ -206,3 +219,51 @@ SELECT 1, id FROM sys_menu;
 -- INSERT INTO sys_role_menu (role_id, menu_id)
 -- SELECT 1, id FROM sys_menu WHERE path = '/system/permissions'
 -- AND NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = (SELECT id FROM sys_menu WHERE path = '/system/permissions'));
+
+-- ============================================
+-- 文件存储与水印功能迁移脚本
+-- ============================================
+-- -- 创建sys_config表
+-- CREATE TABLE IF NOT EXISTS sys_config (
+--     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+--     config_key VARCHAR(100) NOT NULL UNIQUE COMMENT '配置键',
+--     config_value VARCHAR(500) COMMENT '配置值',
+--     description VARCHAR(200) COMMENT '配置描述',
+--     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+--     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
+--
+-- -- 添加配置权限
+-- INSERT INTO sys_permission (code, name, permission_type, category, permission_sort)
+-- SELECT 'config:list', '配置列表', 'button', 'system', 1 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE code = 'config:list');
+-- INSERT INTO sys_permission (code, name, permission_type, category, permission_sort)
+-- SELECT 'config:update', '修改配置', 'button', 'system', 2 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE code = 'config:update');
+--
+-- -- 添加配置菜单
+-- INSERT INTO sys_menu (name, path, component, menu_type, icon, parent_id, menu_sort, visible)
+-- SELECT '系统配置', '/system/configs', '/system/configs/index', 'menu', 'Tools', 1, 5, '1' WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE path = '/system/configs');
+--
+-- -- 将新权限关联给admin角色
+-- INSERT INTO sys_role_permission (role_id, permission_id)
+-- SELECT 1, id FROM sys_permission WHERE code IN ('config:list', 'config:update')
+-- AND NOT EXISTS (SELECT 1 FROM sys_role_permission WHERE role_id = 1 AND permission_id = (SELECT id FROM sys_permission WHERE code = 'config:list'));
+--
+-- -- 将配置菜单关联给admin角色
+-- INSERT INTO sys_role_menu (role_id, menu_id)
+-- SELECT 1, id FROM sys_menu WHERE path = '/system/configs'
+-- AND NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = (SELECT id FROM sys_menu WHERE path = '/system/configs'));
+--
+-- -- 初始化配置数据
+-- INSERT INTO sys_config (config_key, config_value, description) VALUES
+-- ('storage.type', 'rustfs', '存储类型（rustfs/oss）'),
+-- ('storage.rustfs.endpoint', 'http://192.168.1.100:9000', 'RustFS S3兼容接口地址'),
+-- ('storage.rustfs.bucket', 'oc-admin', 'RustFS Bucket名称'),
+-- ('storage.rustfs.access-key', 'rustfsadmin', 'RustFS Access Key'),
+-- ('storage.rustfs.secret-key', 'rustfssecret', 'RustFS Secret Key'),
+-- ('storage.oss.endpoint', '', '阿里云OSS Endpoint'),
+-- ('storage.oss.bucket', '', '阿里云OSS Bucket'),
+-- ('storage.oss.access-key', '', '阿里云OSS AccessKey'),
+-- ('storage.oss.secret-key', '', '阿里云OSS SecretKey'),
+-- ('watermark.enabled', 'true', '是否启用水印'),
+-- ('watermark.text', 'oc-admin', '水印文字')
+-- WHERE NOT EXISTS (SELECT 1 FROM sys_config WHERE config_key = 'storage.type');

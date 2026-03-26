@@ -65,7 +65,8 @@ mvn test jacoco:report
 - **SysPermission** - 权限代码（如 user:list、user:create）
 - **SysMenu** - 菜单项，用于动态路由
 - **ProcessDefinition** - 流程定义，存储 BPMN XML
-- **ApprovalRequest** - 审核申请记录
+- **ApprovalRequest** - 审核申请记录（不含表单数据）
+- **ApprovalRequestData** - 审核申请数据，存储表单 JSON（与 ApprovalRequest 通过 requestId 关联，无外键约束）
 - **ApprovalTask** - 审核任务记录
 - **ApprovalNode** - 审核节点配置
 
@@ -111,9 +112,16 @@ mvn test jacoco:report
 - `PUT /api/workflow/definitions/{id}` - 更新流程定义（需要 workflow:deploy 权限）
 - `DELETE /api/workflow/definitions/{id}` - 删除流程定义（需要 workflow:delete 权限）
 - `POST /api/workflow/definitions/save` - 保存流程定义(新建/更新)（需要 workflow:deploy 权限）
+- `GET /api/workflow/definitions/{id}/deployed` - 检查流程是否已部署
+- `POST /api/workflow/definitions/{id}/deploy` - 部署指定流程定义
+- `POST /api/workflow/definitions/batch-deploy` - 批量部署流程定义
+- `GET /api/workflow/definitions/deployed/all` - 获取所有已部署流程
 - `POST /api/workflow/requests` - 提交审核申请（需要 workflow:request 权限）
 - `GET /api/workflow/requests/my` - 获取我的申请（需要 workflow:request 权限）
-- `GET /api/workflow/requests/{id}` - 获取申请详情（需要 workflow:request 权限）
+- `GET /api/workflow/requests/{id}` - 获取申请详情（返回 ApprovalRequestDTO，包含表单数据）
+- `GET /api/workflow/requests/{id}/tasks` - 获取申请关联的任务列表
+- `POST /api/workflow/requests/{id}/cancel` - 撤销申请
+- `POST /api/workflow/requests/{id}/withdraw` - 撤回申请
 - `GET /api/workflow/tasks/my` - 获取我的待审核任务（需要 workflow:approve 权限）
 - `GET /api/workflow/tasks/{taskId}` - 获取任务详情（需要 workflow:approve 权限）
 - `POST /api/workflow/tasks/{taskId}/complete` - 完成审核任务（需要 workflow:approve 权限）
@@ -135,6 +143,15 @@ mvn test jacoco:report
 - 用户提交申请后创建 `ApprovalRequest` 记录
 - 系统自动创建 `ApprovalTask` 任务分配给审核人
 - 审核人通过/拒绝后，系统自动处理后续节点或结束流程
+
+### 表结构设计原则
+
+**垂直拆分**：`wf_approval_request` 表仅存储核心字段（申请人、状态、当前节点等），表单数据（JSON）独立存储在 `wf_approval_request_data` 表中，通过 `request_id` 关联。
+
+**无外键约束**：表之间不使用数据库外键关联，由应用层通过 Repository 实现 JOIN 查询。这种设计：
+- 避免数据库级联删除/更新的复杂性
+- 便于独立扩展各表
+- 减少数据库维护负担
 
 ## 测试
 

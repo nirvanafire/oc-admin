@@ -1,11 +1,13 @@
 package com.nirvanafire.ocadmin.config;
 
+import com.nirvanafire.ocadmin.entity.SysConfig;
 import com.nirvanafire.ocadmin.entity.SysMenu;
 import com.nirvanafire.ocadmin.entity.SysPermission;
 import com.nirvanafire.ocadmin.entity.SysRole;
 import com.nirvanafire.ocadmin.entity.SysUser;
 import com.nirvanafire.ocadmin.repository.MenuRepository;
 import com.nirvanafire.ocadmin.repository.PermissionRepository;
+import com.nirvanafire.ocadmin.repository.SysConfigRepository;
 import com.nirvanafire.ocadmin.repository.RoleRepository;
 import com.nirvanafire.ocadmin.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class DataInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
     private final MenuRepository menuRepository;
+    private final SysConfigRepository configRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -45,6 +48,9 @@ public class DataInitializer implements CommandLineRunner {
 
         // 初始化管理员用户
         initAdminUser();
+
+        // 初始化系统配置
+        initConfigs();
 
         log.info("默认数据初始化完成");
     }
@@ -86,6 +92,10 @@ public class DataInitializer implements CommandLineRunner {
         permissions.add(createPermission("workflow:delete", "删除流程", "button"));
         permissions.add(createPermission("workflow:request", "提交申请", "button"));
         permissions.add(createPermission("workflow:approve", "审核任务", "button"));
+
+        // 系统配置权限
+        permissions.add(createPermission("config:list", "配置列表", "button"));
+        permissions.add(createPermission("config:update", "修改配置", "button"));
 
         permissionRepository.saveAll(permissions);
     }
@@ -191,6 +201,19 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
         menuRepository.save(menuManage);
 
+        // 系统配置
+        SysMenu configMenu = SysMenu.builder()
+                .name("系统配置")
+                .path("/system/configs")
+                .component("/system/configs/index")
+                .menuType("menu")
+                .icon("Tools")
+                .parentId(systemDir.getId())
+                .menuSort(4)
+                .visible("1")
+                .build();
+        menuRepository.save(configMenu);
+
         // 工作流管理目录
         SysMenu workflowDir = SysMenu.builder()
                 .name("工作流管理")
@@ -284,5 +307,29 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
 
         userRepository.save(adminUser);
+    }
+
+    private void initConfigs() {
+        if (configRepository.count() > 0) {
+            log.info("系统配置数据已存在，跳过初始化");
+            return;
+        }
+
+        log.info("初始化系统配置...");
+
+        // 存储配置
+        configRepository.save(SysConfig.builder().configKey("storage.type").configValue("rustfs").description("存储类型（rustfs/oss）").build());
+        configRepository.save(SysConfig.builder().configKey("storage.rustfs.endpoint").configValue("http://192.168.1.100:9000").description("RustFS S3兼容接口地址").build());
+        configRepository.save(SysConfig.builder().configKey("storage.rustfs.bucket").configValue("oc-admin").description("RustFS Bucket名称").build());
+        configRepository.save(SysConfig.builder().configKey("storage.rustfs.access-key").configValue("rustfsadmin").description("RustFS Access Key").build());
+        configRepository.save(SysConfig.builder().configKey("storage.rustfs.secret-key").configValue("rustfssecret").description("RustFS Secret Key").build());
+        configRepository.save(SysConfig.builder().configKey("storage.oss.endpoint").configValue("").description("阿里云OSS Endpoint").build());
+        configRepository.save(SysConfig.builder().configKey("storage.oss.bucket").configValue("").description("阿里云OSS Bucket").build());
+        configRepository.save(SysConfig.builder().configKey("storage.oss.access-key").configValue("").description("阿里云OSS AccessKey").build());
+        configRepository.save(SysConfig.builder().configKey("storage.oss.secret-key").configValue("").description("阿里云OSS SecretKey").build());
+
+        // 水印配置
+        configRepository.save(SysConfig.builder().configKey("watermark.enabled").configValue("true").description("是否启用水印").build());
+        configRepository.save(SysConfig.builder().configKey("watermark.text").configValue("oc-admin").description("水印文字").build());
     }
 }

@@ -1,5 +1,6 @@
 package com.nirvanafire.ocadmin.service;
 
+import com.nirvanafire.ocadmin.dto.ApprovalRequestDTO;
 import com.nirvanafire.ocadmin.dto.TaskDTO;
 import com.nirvanafire.ocadmin.entity.ApprovalRequest;
 import com.nirvanafire.ocadmin.entity.ApprovalTask;
@@ -49,7 +50,7 @@ public interface WorkflowService {
     /**
      * 获取申请详情
      */
-    ApprovalRequest getRequest(Long requestId);
+    ApprovalRequestDTO getRequest(Long requestId);
 
     /**
      * 获取我的待审核任务

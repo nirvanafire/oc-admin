@@ -53,9 +53,6 @@ public class ApprovalRequest {
     @Builder.Default
     private String status = "PENDING";
 
-    @Column(name = "form_data", columnDefinition = "JSON")
-    private String formData;
-
     @CreatedDate
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;

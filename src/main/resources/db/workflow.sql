@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS wf_approval_request (
     current_node VARCHAR(100),
     current_node_name VARCHAR(100),
     status VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING: 待审核, APPROVED: 已通过, REJECTED: 已拒绝, CANCELLED: 已撤销',
-    form_data JSON,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     complete_time DATETIME,
@@ -33,6 +32,16 @@ CREATE TABLE IF NOT EXISTS wf_approval_request (
     INDEX idx_status (status),
     INDEX idx_process_instance_id (process_instance_id),
     INDEX idx_process_key (process_key)
+);
+
+-- 审核申请数据表（存储表单数据，独立出来优化查询性能）
+CREATE TABLE IF NOT EXISTS wf_approval_request_data (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    request_id BIGINT NOT NULL,
+    form_data JSON,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_request_id (request_id)
 );
 
 -- 审核节点配置表
@@ -45,8 +54,7 @@ CREATE TABLE IF NOT EXISTS wf_approval_node (
     approver_ids VARCHAR(500) COMMENT '当approver_type=USER时，存储用户ID列表，逗号分隔',
     approver_role VARCHAR(50) COMMENT '当approver_type=ROLE时，存储角色代码',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_process_definition_id (process_definition_id),
-    FOREIGN KEY (process_definition_id) REFERENCES wf_process_definition(id) ON DELETE CASCADE
+    INDEX idx_process_definition_id (process_definition_id)
 );
 
 -- 审核任务记录表
@@ -64,6 +72,5 @@ CREATE TABLE IF NOT EXISTS wf_approval_task (
     complete_time DATETIME,
     INDEX idx_request_id (request_id),
     INDEX idx_assignee_id (assignee_id),
-    INDEX idx_task_status (task_status),
-    FOREIGN KEY (request_id) REFERENCES wf_approval_request(id) ON DELETE CASCADE
+    INDEX idx_task_status (task_status)
 );

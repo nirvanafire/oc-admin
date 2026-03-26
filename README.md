@@ -46,6 +46,7 @@ oc-admin
 │   ├── entity/                          # 实体类
 │   │   ├── ProcessDefinition.java       # 流程定义
 │   │   ├── ApprovalRequest.java         # 审核申请
+│   │   ├── ApprovalRequestData.java     # 审核申请数据（表单数据，独立表存储）
 │   │   ├── ApprovalTask.java            # 审核任务
 │   │   └── ApprovalNode.java            # 审核节点
 │   ├── dto/                             # 数据传输对象
@@ -77,8 +78,11 @@ oc-admin
 
 ### 工作流模型
 
+> **设计原则**：表关联不使用外键约束，由应用层负责 JOIN 查询。
+
 - **wf_process_definition** - 流程定义表
-- **wf_approval_request** - 审核申请记录表
+- **wf_approval_request** - 审核申请记录表（不含表单数据）
+- **wf_approval_request_data** - 审核申请数据表（表单数据 JSON，独立存储以优化查询性能）
 - **wf_approval_node** - 审核节点配置表
 - **wf_approval_task** - 审核任务记录表
 
