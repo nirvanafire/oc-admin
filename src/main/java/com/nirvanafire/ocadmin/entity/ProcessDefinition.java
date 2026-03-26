@@ -34,7 +34,7 @@ public class ProcessDefinition {
     @Column(name = "flowable_definition_id", length = 100)
     private String flowableDefinitionId;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String xml;
 
     @Column(nullable = false)

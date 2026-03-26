@@ -97,13 +97,38 @@ oc-admin
 
 ### 2. 初始化数据库
 
+**MySQL：**
 ```bash
 mysql -u root -p < src/main/resources/db/init.sql
 ```
 
+**PostgreSQL：**
+```bash
+psql -U postgres -d oc_admin -f src/main/resources/db/init.sql
+```
+
 ### 3. 修改配置
 
-编辑 `src/main/resources/application.yml`：
+配置文件位于 `src/main/resources/`，采用 Spring Profiles 机制切换数据库。
+
+**激活 MySQL（默认）：**
+```bash
+mvn spring-boot:run
+# 或设置环境变量
+SPRING_PROFILES_ACTIVE=mysql mvn spring-boot:run
+```
+
+**激活 PostgreSQL：**
+```bash
+SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run
+```
+
+**各配置文件说明：**
+- `application.yml` - 公共配置（Redis、邮件、JWT、Flowable 等）
+- `application-mysql.yml` - MySQL 数据源和 JPA 配置
+- `application-postgres.yml` - PostgreSQL 数据源和 JPA 配置
+
+> 如需修改数据库连接，直接编辑对应的 profile 文件即可。
 
 ```yaml
 spring:
