@@ -74,4 +74,33 @@ public class SysUser {
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    
+    // 个人中心扩展字段
+    @Column(length = 255)
+    private String signature;
+    
+    // 消息通知设置
+    @Column(name = "notify_approval")
+    @Builder.Default
+    private Boolean notifyApproval = true;
+    
+    @Column(name = "notify_attendance")
+    @Builder.Default
+    private Boolean notifyAttendance = true;
+    
+    @Column(name = "notify_announcement")
+    @Builder.Default
+    private Boolean notifyAnnouncement = true;
+    
+    @Column(name = "notify_email")
+    @Builder.Default
+    private Boolean notifyEmail = false;
+    
+    @Column(name = "notify_sms")
+    @Builder.Default
+    private Boolean notifySms = false;
+    
+    // 部门ID
+    @Column(name = "dept_id")
+    private Long deptId;
 }

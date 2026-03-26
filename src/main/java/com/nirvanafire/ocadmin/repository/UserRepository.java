@@ -25,4 +25,10 @@ public interface UserRepository extends JpaRepository<SysUser, Long> {
 
     @Query("SELECT ud.deptId FROM SysUserDept ud WHERE ud.userId = :userId")
     List<Long> findDeptIdsByUserId(@Param("userId") Long userId);
+    
+    boolean existsByPhone(String phone);
+    
+    boolean existsByPhoneAndIdNot(String phone, Long id);
+    
+    boolean existsByEmail(String email);
 }

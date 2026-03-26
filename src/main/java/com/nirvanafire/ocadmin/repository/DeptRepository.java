@@ -23,4 +23,6 @@ public interface DeptRepository extends JpaRepository<SysDept, Long> {
     List<SysDept> findRootDepts();
 
     boolean existsByParentId(Long parentId);
+    
+    Optional<SysDept> findByName(String name);
 }
