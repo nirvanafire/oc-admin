@@ -38,8 +38,9 @@ public class MenuServiceImpl implements MenuService {
                 .keepAlive(dto.getKeepAlive() != null ? dto.getKeepAlive() : true)
                 .alwaysShow(dto.getAlwaysShow() != null ? dto.getAlwaysShow() : false)
                 .remark(dto.getRemark())
+                .permissionCode(dto.getPermissionCode())
                 .build();
-        
+
         menu = menuRepository.save(menu);
         return toDTO(menu);
     }
@@ -49,12 +50,13 @@ public class MenuServiceImpl implements MenuService {
     public MenuDTO update(Long id, MenuDTO dto) {
         SysMenu menu = menuRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("菜单不存在"));
-        
+
         menu.setName(dto.getName());
         menu.setPath(dto.getPath());
         menu.setComponent(dto.getComponent());
         menu.setMenuType(dto.getMenuType());
         menu.setIcon(dto.getIcon());
+        menu.setPermissionCode(dto.getPermissionCode());
         menu.setParentId(dto.getParentId());
         menu.setMenuSort(dto.getMenuSort());
         menu.setVisible(dto.getVisible());
@@ -137,6 +139,7 @@ public class MenuServiceImpl implements MenuService {
                 .keepAlive(menu.getKeepAlive())
                 .alwaysShow(menu.getAlwaysShow())
                 .remark(menu.getRemark())
+                .permissionCode(menu.getPermissionCode())
                 .build();
     }
 }
