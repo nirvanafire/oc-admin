@@ -3,10 +3,8 @@ package com.nirvanafire.ocadmin.service.impl;
 import com.nirvanafire.ocadmin.common.exception.BusinessException;
 import com.nirvanafire.ocadmin.dto.RoleDTO;
 import com.nirvanafire.ocadmin.entity.SysMenu;
-import com.nirvanafire.ocadmin.entity.SysPermission;
 import com.nirvanafire.ocadmin.entity.SysRole;
 import com.nirvanafire.ocadmin.repository.MenuRepository;
-import com.nirvanafire.ocadmin.repository.PermissionRepository;
 import com.nirvanafire.ocadmin.repository.RoleRepository;
 import com.nirvanafire.ocadmin.service.RoleService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +23,6 @@ import java.util.stream.Collectors;
 public class RoleServiceImpl implements RoleService {
 
     private final RoleRepository roleRepository;
-    private final PermissionRepository permissionRepository;
     private final MenuRepository menuRepository;
 
     @Override
@@ -43,7 +40,7 @@ public class RoleServiceImpl implements RoleService {
                 .enabled(dto.getEnabled() != null ? dto.getEnabled() : true)
                 .build();
         
-        setPermissionsAndMenus(role, dto);
+        setMenus(role, dto);
         
         role = roleRepository.save(role);
         return toDTO(role);
@@ -64,21 +61,13 @@ public class RoleServiceImpl implements RoleService {
             role.setEnabled(dto.getEnabled());
         }
         
-        setPermissionsAndMenus(role, dto);
+        setMenus(role, dto);
         
         role = roleRepository.save(role);
         return toDTO(role);
     }
 
-    private void setPermissionsAndMenus(SysRole role, RoleDTO dto) {
-        if (dto.getPermissionIds() != null) {
-            Set<SysPermission> permissions = dto.getPermissionIds().stream()
-                    .map(id -> permissionRepository.findById(id)
-                            .orElseThrow(() -> new BusinessException("权限不存在: " + id)))
-                    .collect(Collectors.toSet());
-            role.setPermissions(permissions);
-        }
-        
+    private void setMenus(SysRole role, RoleDTO dto) {
         if (dto.getMenuIds() != null) {
             Set<SysMenu> menus = dto.getMenuIds().stream()
                     .map(id -> menuRepository.findById(id)
@@ -131,7 +120,6 @@ public class RoleServiceImpl implements RoleService {
                 .description(role.getDescription())
                 .roleSort(role.getRoleSort())
                 .enabled(role.getEnabled())
-                .permissionIds(role.getPermissions().stream().map(SysPermission::getId).collect(Collectors.toSet()))
                 .menuIds(role.getMenus().stream().map(SysMenu::getId).collect(Collectors.toSet()))
                 .build();
     }

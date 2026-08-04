@@ -18,6 +18,5 @@ public class RoleDTO {
     private String description;
     private Integer roleSort;
     private Boolean enabled;
-    private Set<Long> permissionIds;
     private Set<Long> menuIds;
 }

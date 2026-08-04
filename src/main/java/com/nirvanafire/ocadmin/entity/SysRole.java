@@ -41,15 +41,6 @@ public class SysRole {
     @Builder.Default
     private Boolean enabled = true;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "sys_role_permission",
-        joinColumns = @JoinColumn(name = "role_id"),
-        inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
-    @Builder.Default
-    private Set<SysPermission> permissions = new HashSet<>();
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "sys_role_menu",

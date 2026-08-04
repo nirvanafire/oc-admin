@@ -22,9 +22,6 @@ class RepositoryTest {
     private RoleRepository roleRepository;
 
     @Autowired
-    private PermissionRepository permissionRepository;
-
-    @Autowired
     private MenuRepository menuRepository;
 
     @Test
@@ -57,13 +54,6 @@ class RepositoryTest {
     void testRoleRepositoryExistsByCode() {
         assertTrue(roleRepository.existsByCode("admin"));
         assertFalse(roleRepository.existsByCode("nonexistent"));
-    }
-
-    @Test
-    void testPermissionRepositoryFindByCode() {
-        var permission = permissionRepository.findByCode("user:list");
-        assertTrue(permission.isPresent());
-        assertEquals("用户列表", permission.get().getName());
     }
 
     @Test

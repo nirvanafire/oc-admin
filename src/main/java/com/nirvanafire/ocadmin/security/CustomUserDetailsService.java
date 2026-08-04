@@ -1,6 +1,6 @@
 package com.nirvanafire.ocadmin.security;
 
-import com.nirvanafire.ocadmin.entity.SysPermission;
+import com.nirvanafire.ocadmin.entity.SysMenu;
 import com.nirvanafire.ocadmin.entity.SysRole;
 import com.nirvanafire.ocadmin.entity.SysUser;
 import com.nirvanafire.ocadmin.repository.UserRepository;
@@ -11,8 +11,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -25,26 +25,24 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         log.info("加载用户信息: {}", username);
 
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + username));
 
-        log.info("找到用户: {}, enabled: {}, accountNonLocked: {}, accountNonExpired: {}, credentialsNonExpired: {}",
-            user.getUsername(), user.getEnabled(), user.getAccountNonLocked(),
-            user.getAccountNonExpired(), user.getCredentialsNonExpired());
-
         Set<SimpleGrantedAuthority> authorities = new HashSet<>();
 
-        // 添加角色
         for (SysRole role : user.getRoles()) {
             log.info("用户角色: {}", role.getCode());
             authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getCode()));
 
-            // 添加权限
-            for (SysPermission permission : role.getPermissions()) {
-                authorities.add(new SimpleGrantedAuthority(permission.getCode()));
+            // 从button类型菜单节点收集权限
+            for (SysMenu menu : role.getMenus()) {
+                if ("button".equals(menu.getMenuType()) && menu.getPermissionCode() != null) {
+                    authorities.add(new SimpleGrantedAuthority(menu.getPermissionCode()));
+                }
             }
         }
 
@@ -67,10 +65,12 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .collect(Collectors.toSet());
     }
 
+    @Transactional(readOnly = true)
     public Set<String> getUserPermissions(SysUser user) {
         return user.getRoles().stream()
-                .flatMap(role -> role.getPermissions().stream())
-                .map(SysPermission::getCode)
+                .flatMap(role -> role.getMenus().stream())
+                .filter(menu -> "button".equals(menu.getMenuType()) && menu.getPermissionCode() != null)
+                .map(SysMenu::getPermissionCode)
                 .collect(Collectors.toSet());
     }
 }

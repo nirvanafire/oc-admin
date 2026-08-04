@@ -24,5 +24,6 @@ public class MenuDTO {
     private Boolean keepAlive;
     private Boolean alwaysShow;
     private String remark;
+    private String permissionCode;
     private List<MenuDTO> children;
 }

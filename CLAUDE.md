@@ -1,89 +1,47 @@
 # CLAUDE.md
 
-此文件为 Claude Code (claude.ai/code) 在本项目中工作提供指导。
+## 工作方式
+- 在实现前先说明方法。
+- 若需求有歧义、风险较高或影响较大，先澄清并等待批准，再开始写代码。
+- Plan 只写方案，不写代码。
+- 坚持 Spec Coding，不做 Vibe Coding。
+- 优先迭代，使用 `/loop`。
+- 完成后执行 `/simplify`。
+- 你是统筹者，先指定一个 Claude 产出 plan。
+- 基于 plan 将任务拆分后分配给不同的 Claude 并行或串行执行。
+- 所有子任务应保持边界清晰、职责明确、便于独立验证。
+- 完成后再指定一个 Claude 汇总结果并输出最终报告给我。
 
-## 项目概述
+## 编码规则
+- 代码中只允许使用英文。
+- Spec 不依赖行号定位代码。
+- 注释中不要写开发过程式说明。
+- 优先用概念性描述定位代码，不用“文件路径 + 行号”。
 
-OC Admin 是一个基于 Spring Boot 3 + Spring Security 6 的 RBAC（基于角色的访问控制）权限管理系统，采用 JWT 进行身份认证。
+## 拆分与范围控制
+- 将任务拆分为低耦合、可独立验证的子任务，必要时使用 `/batch`。
+- 重复出现 3 次的流程应沉淀为 Skill。
+- 任务分配时优先控制单个 Claude 的上下文范围，避免把过多背景一次性注入到同一个上下文中。
+- 只向负责该子任务的 Claude 提供完成任务所必需的最小上下文。
+- 跨任务共享信息时，优先传递经过整理的结论、约束和接口，而不是完整过程性上下文。
 
-## 常用命令
+## 质量要求
+- 项目早期只保留最小必要质量标准：可运行、可验证、可回滚。
+- 优先保证关键路径和高风险改动可验证。
+- 处理 bug 时，先复现，再修复并验证。
 
-```bash
-# 运行应用程序
-mvn spring-boot:run
+## 纠错与协作
+- 被纠正时，识别原因并改进做法；对重复性问题，沉淀为明确规则。
+- 实现与审查分离：先完成方案或代码，再独立复核。
+- 统筹者负责跟踪各 Claude 的输入、输出、依赖关系和验收结果，避免遗漏与重复劳动。
+- 汇总报告应至少包含：任务目标、各子任务结果、验证结论、遗留风险、后续建议。
 
-# 构建项目
-mvn clean package
+## 禁止事项
+- 永远不要使用 `/init`。
+- `CLAUDE.md` 应按项目实际需求编写，不要套用空泛模板。
+- Avoid terms to describe development progress (`FIXED`, `Step`, `Week`, `Section`, `Phase`, `AC-x`, etc) in code comments or commit message or PR body.
+- Avoid AI tools name (like Codex, Claude, Grok, Gemini, ...) in code comments or git commit message (including authorship) or PR body.
 
-# 构建但不运行测试
-mvn clean package -DskipTests
-
-# 运行所有测试
-mvn test
-
-# 运行指定的测试类
-mvn test -Dtest=UserControllerTest
-
-# 运行指定包下的测试
-mvn test -Dtest="com.nirvanafire.ocadmin.service.*"
-
-# 生成测试覆盖率报告
-mvn test jacoco:report
-```
-
-## 架构
-
-这是一个标准的 Spring Boot 分层架构：
-
-- **Controller 层** (`src/main/java/.../controller/`) - REST API 端点，处理 HTTP 请求/响应
-- **Service 层** (`src/main/java/.../service/`) - 业务逻辑，事务管理
-- **Repository 层** (`src/main/java/.../repository/`) - 使用 Spring Data JPA 进行数据访问
-- **Entity 层** (`src/main/java/.../entity/`) - JPA 实体/数据库表
-
-## 核心组件
-
-### 安全
-- **JwtTokenProvider** - 生成和验证 JWT 令牌
-- **JwtAuthenticationFilter** - 拦截请求，验证 JWT，设置安全上下文
-- **CustomUserDetailsService** - 从数据库加载用户信息用于身份认证
-- **SecurityConfig** - Spring Security 配置（无状态会话、CORS、授权规则）
-
-### 认证流程
-1. 用户向 `/api/auth/login` 发送用户名/密码的 POST 请求
-2. Spring Security 验证凭证
-3. JwtTokenProvider 生成 JWT 令牌
-4. 登出时令牌存储到 Redis 黑名单
-
-### 授权
-- 通过 `@PreAuthorize` 注解实现方法级安全（如 `@PreAuthorize("hasAuthority('user:list')")`）
-- 权限存储在 `sys_permission` 表
-- 角色通过 `sys_role_permission` 表分配权限
-
-### 数据库实体
-- **SysUser** - 系统用户，密码使用 BCrypt 加密存储
-- **SysRole** - 角色（如 ADMIN、USER）
-- **SysPermission** - 权限代码（如 user:list、user:create）
-- **SysMenu** - 菜单项，用于动态路由
-
-## 配置
-
-配置文件位于 `src/main/resources/application.yml`：
-- 数据库：MySQL 8.x
-- 缓存：Redis 7.x
-- JWT 密钥和过期时间（默认：2小时）
-- CORS 允许的来源：`http://localhost:5173`、`http://localhost:3000`
-
-## API 端点
-
-- `POST /api/auth/login` - 登录（公开）
-- `POST /api/auth/logout` - 登出（需认证）
-- `GET /api/auth/current` - 获取当前用户（需认证）
-- `GET /api/users` - 用户列表（需要 user:list 权限）
-- `GET /api/roles` - 角色列表（需要 role:list 权限）
-- `GET /api/roles/all` - 获取所有角色（公开）
-- `GET /api/menus/tree` - 获取菜单树
-- `GET /api/menus/user` - 获取当前用户的菜单
-
-## 测试
-
-测试使用 `@SpringBootTest` 配合 `@AutoConfigureMockMvc` 进行集成测试。测试类位于 `src/test/java/`。测试使用 `@Transactional` 保证数据隔离。
+## 全局约定
+- 文件编码格式使用UTF-8
+- 代码注释使用中文

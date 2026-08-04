@@ -148,13 +148,13 @@ class RoleControllerTest {
 
     @Test
     @Order(8)
-    @DisplayName("更新角色 - 添加权限")
-    void updateRoleWithPermissions() throws Exception {
+    @DisplayName("更新角色 - 关联菜单")
+    void updateRoleWithMenus() throws Exception {
         RoleDTO dto = new RoleDTO();
         dto.setName("测试角色-已更新");
         dto.setDescription("更新后的描述");
         dto.setEnabled(true);
-        dto.setPermissionIds(Set.of(1L, 2L, 3L)); // 添加权限
+        dto.setMenuIds(Set.of(1L, 2L, 3L));
 
         mockMvc.perform(put("/api/roles/" + createdRoleId)
                         .header("Authorization", "Bearer " + adminToken)

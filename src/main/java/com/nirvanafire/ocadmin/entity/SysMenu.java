@@ -7,8 +7,6 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "sys_menu")
@@ -63,14 +61,8 @@ public class SysMenu {
     @Column(length = 255)
     private String remark;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "sys_menu_permission",
-        joinColumns = @JoinColumn(name = "menu_id"),
-        inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
-    @Builder.Default
-    private Set<SysPermission> permissions = new HashSet<>();
+    @Column(name = "permission_code", length = 100, unique = true)
+    private String permissionCode;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

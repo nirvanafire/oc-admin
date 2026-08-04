@@ -30,6 +30,10 @@ public class UserDTO {
     private String avatar;
     
     private Boolean enabled;
-    
+
     private Set<Long> roleIds;
+
+    private Set<String> roles;
+
+    private Set<String> permissions;
 }

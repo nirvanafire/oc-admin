@@ -93,7 +93,7 @@ public class AuthServiceImpl implements AuthService {
     public UserDTO getCurrentUser(String username) {
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
-        
+
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
@@ -103,6 +103,8 @@ public class AuthServiceImpl implements AuthService {
         dto.setAvatar(user.getAvatar());
         dto.setEnabled(user.getEnabled());
         dto.setRoleIds(user.getRoles().stream().map(r -> r.getId()).collect(Collectors.toSet()));
+        dto.setRoles(userDetailsService.getUserRoles(user));
+        dto.setPermissions(userDetailsService.getUserPermissions(user));
         return dto;
     }
 }

@@ -10,4 +10,5 @@ import java.util.List;
 public interface MenuRepository extends JpaRepository<SysMenu, Long> {
     List<SysMenu> findByParentIdOrderByMenuSort(Long parentId);
     List<SysMenu> findByVisibleOrderByMenuSort(String visible);
+    boolean existsByPermissionCode(String permissionCode);
 }
