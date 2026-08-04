@@ -1,6 +1,5 @@
 package com.nirvanafire.ocadmin.service;
 
-import com.nirvanafire.ocadmin.dto.MenuDTO;
 import com.nirvanafire.ocadmin.dto.RoleDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

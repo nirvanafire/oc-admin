@@ -10,5 +10,6 @@ public interface MenuService {
     void delete(Long id);
     MenuDTO getById(Long id);
     List<MenuDTO> getTree();
+    List<MenuDTO> getFullTree();
     List<MenuDTO> getUserMenus(String username);
 }

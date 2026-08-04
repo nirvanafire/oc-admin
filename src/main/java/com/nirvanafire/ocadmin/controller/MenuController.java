@@ -48,6 +48,11 @@ public class MenuController {
         return Result.success(menuService.getTree());
     }
 
+    @GetMapping("/tree/full")
+    public Result<List<MenuDTO>> fullTree() {
+        return Result.success(menuService.getFullTree());
+    }
+
     @GetMapping("/user")
     public Result<List<MenuDTO>> getUserMenus() {
         String username = SecurityUtils.getCurrentUsername();

@@ -61,7 +61,7 @@ public class SysMenu {
     @Column(length = 255)
     private String remark;
 
-    @Column(name = "permission_code", length = 100, unique = true)
+    @Column(name = "permission_code", length = 100, unique = true, nullable = true)
     private String permissionCode;
 
     @CreatedDate

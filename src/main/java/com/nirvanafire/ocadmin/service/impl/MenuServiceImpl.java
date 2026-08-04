@@ -94,6 +94,12 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
+    public List<MenuDTO> getFullTree() {
+        List<SysMenu> allMenus = menuRepository.findAll();
+        return buildTree(allMenus, 0L);
+    }
+
+    @Override
     public List<MenuDTO> getUserMenus(String username) {
         SysUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
