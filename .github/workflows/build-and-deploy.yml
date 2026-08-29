@@ -1,0 +1,88 @@
+name: Java CI/CD with Docker (Alibaba Cloud ACR)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  # 关键：这是阿里云 ACR 的完整仓库地址
+  # 格式: <地域>.aliyuncs.com/<命名空间>/<镜像仓库名>
+  # 例如: registry.cn-hangzhou.aliyuncs.com/my-namespace/oc-admin
+  REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+  IMAGE_NAME: ${{ secrets.ALIYUN_NAMESPACE }}
+
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Upload JAR as artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 关键改动：登录到阿里云 ACR，而非 Docker Hub
+      - name: Log in to Alibaba Cloud ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USER }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:oc-admin_latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+
+  deploy-to-remote-server:
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Remote Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          password: ${{ secrets.REMOTE_PASSWORD }} 
+          # key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 关键：登录到阿里云 ACR，然后拉取镜像
+            echo "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | docker login \
+              -u "${{ secrets.ALIYUN_REGISTRY_USER }}" \
+              --password-stdin \
+              ${{ env.REGISTRY }}
+            
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:oc-admin_latest
+            
+            docker stop oc-admin-srv || true
+            docker rm oc-admin-srv || true
+            
+            docker run -d --name oc-admin-srv -p 8080:8080 \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:oc-admin_latest

@@ -8,7 +8,7 @@ spring:
     name: oc-admin
   
   datasource:
-    url: jdbc:mysql://${mysqlUrl:localhost}:3306/oc_admin?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    url: jdbc:mysql://${mysqlUrl:localhost}:3306/oc_admin?allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
     username: ocadmin
     password: ocadmin
     driver-class-name: com.mysql.cj.jdbc.Driver
