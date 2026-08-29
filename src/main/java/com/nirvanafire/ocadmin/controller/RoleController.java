@@ -1,6 +1,7 @@
 package com.nirvanafire.ocadmin.controller;
 
 import com.nirvanafire.ocadmin.common.Result;
+import com.nirvanafire.ocadmin.dto.AssignPermissionsRequest;
 import com.nirvanafire.ocadmin.dto.RoleDTO;
 import com.nirvanafire.ocadmin.service.RoleService;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/roles")
@@ -31,6 +33,13 @@ public class RoleController {
     @PreAuthorize("hasAuthority('role:update')")
     public Result<RoleDTO> update(@PathVariable Long id, @Valid @RequestBody RoleDTO dto) {
         return Result.success(roleService.update(id, dto));
+    }
+
+    @PutMapping("/{id}/permissions")
+    @PreAuthorize("hasAuthority('role:update')")
+    public Result<RoleDTO> assignPermissions(@PathVariable Long id, @RequestBody AssignPermissionsRequest body) {
+        Set<Long> menuIds = body.getMenuIds() != null ? body.getMenuIds() : Set.of();
+        return Result.success(roleService.assignPermissions(id, menuIds));
     }
 
     @DeleteMapping("/{id}")

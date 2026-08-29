@@ -167,6 +167,35 @@ class RoleControllerTest {
 
     @Test
     @Order(9)
+    @DisplayName("分配权限 - 成功更新角色权限")
+    void assignPermissionsSuccess() throws Exception {
+        String body = "{\"menuIds\": [1, 2, 3]}";
+
+        mockMvc.perform(put("/api/roles/" + createdRoleId + "/permissions")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.menuIds").isArray());
+    }
+
+    @Test
+    @Order(10)
+    @DisplayName("分配权限 - 角色不存在")
+    void assignPermissionsRoleNotFound() throws Exception {
+        String body = "{\"menuIds\": [1]}";
+
+        mockMvc.perform(put("/api/roles/99999/permissions")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(500));
+    }
+
+    @Test
+    @Order(11)
     @DisplayName("删除角色 - 成功")
     void deleteRole() throws Exception {
         mockMvc.perform(delete("/api/roles/" + createdRoleId)
@@ -176,7 +205,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @Order(10)
+    @Order(12)
     @DisplayName("删除角色 - 已删除的不存在")
     void deleteRoleNotFound() throws Exception {
         mockMvc.perform(delete("/api/roles/" + createdRoleId)
