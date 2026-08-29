@@ -99,6 +99,55 @@ class RoleServiceTest {
 
     @Test
     @Order(7)
+    @DisplayName("分配权限 - 成功更新角色权限")
+    void assignPermissionsSuccess() {
+        Set<Long> menuIds = Set.of(1L, 2L, 3L);
+
+        RoleDTO result = roleService.assignPermissions(createdRoleId, menuIds);
+
+        assertNotNull(result);
+        assertNotNull(result.getMenuIds());
+        assertTrue(result.getMenuIds().containsAll(menuIds));
+        // 角色基本信息不应被修改
+        assertEquals("测试员-已更新", result.getName());
+    }
+
+    @Test
+    @Order(8)
+    @DisplayName("分配权限 - 清空角色权限")
+    void assignPermissionsEmpty() {
+        Set<Long> emptyMenuIds = Set.of();
+
+        RoleDTO result = roleService.assignPermissions(createdRoleId, emptyMenuIds);
+
+        assertNotNull(result);
+        assertTrue(result.getMenuIds().isEmpty());
+    }
+
+    @Test
+    @Order(9)
+    @DisplayName("分配权限 - 包含不存在的菜单ID")
+    void assignPermissionsInvalidMenuId() {
+        Set<Long> menuIds = Set.of(99999L);
+
+        assertThrows(BusinessException.class, () -> {
+            roleService.assignPermissions(createdRoleId, menuIds);
+        });
+    }
+
+    @Test
+    @Order(10)
+    @DisplayName("分配权限 - 角色不存在")
+    void assignPermissionsRoleNotFound() {
+        Set<Long> menuIds = Set.of(1L);
+
+        assertThrows(BusinessException.class, () -> {
+            roleService.assignPermissions(99999L, menuIds);
+        });
+    }
+
+    @Test
+    @Order(11)
     @DisplayName("删除角色")
     void deleteRole() {
         assertDoesNotThrow(() -> {
@@ -107,7 +156,7 @@ class RoleServiceTest {
     }
 
     @Test
-    @Order(8)
+    @Order(12)
     @DisplayName("删除不存在的角色")
     void deleteNonExistentRole() {
         assertThrows(BusinessException.class, () -> {

@@ -112,6 +112,20 @@ public class RoleServiceImpl implements RoleService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional
+    public RoleDTO assignPermissions(Long id, Set<Long> menuIds) {
+        SysRole role = roleRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("角色不存在"));
+
+        RoleDTO dto = new RoleDTO();
+        dto.setMenuIds(menuIds);
+        setMenus(role, dto);
+
+        role = roleRepository.save(role);
+        return toDTO(role);
+    }
+
     private RoleDTO toDTO(SysRole role) {
         return RoleDTO.builder()
                 .id(role.getId())

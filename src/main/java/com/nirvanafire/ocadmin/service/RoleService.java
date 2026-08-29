@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Set;
 
 public interface RoleService {
     RoleDTO create(RoleDTO dto);
@@ -13,4 +14,5 @@ public interface RoleService {
     RoleDTO getById(Long id);
     Page<RoleDTO> list(Pageable pageable);
     List<RoleDTO> all();
+    RoleDTO assignPermissions(Long id, Set<Long> menuIds);
 }
