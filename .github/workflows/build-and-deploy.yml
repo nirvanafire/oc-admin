@@ -58,7 +58,7 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:oc-admin_latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:oc-admin_${{ github.sha }}
           platforms: linux/amd64,linux/arm64
 
   deploy-to-remote-server:
