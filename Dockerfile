@@ -1,5 +1,5 @@
 # 使用轻量级 JDK 基础镜像
-FROM openjdk:17-jdk-slim
+FROM openjdk:17-ea-17-jdk-slim
 
 # 设置工作目录
 WORKDIR /app
