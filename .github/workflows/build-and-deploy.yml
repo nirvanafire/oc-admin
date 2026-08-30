@@ -79,8 +79,8 @@ jobs:
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
-          password: ${{ secrets.REMOTE_PASSWORD }} 
-          # key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # password: ${{ secrets.REMOTE_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             # 关键：登录到阿里云 ACR，然后拉取镜像
             echo "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | docker login \
