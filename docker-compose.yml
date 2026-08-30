@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+
+  # Java 应用
+  app:
+    image: ${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}/${APP_IMAGE_NAME}:${APP_VERSION}
+    container_name: ${PROJECT_NAME}-app
+    restart: always
+    environment:
+      # 应用配置（通过环境变量覆盖 application.yml）
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:prod}
+
+      # MySQL 配置（覆盖 application.yml 中的 spring.datasource 配置）
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+
+      # Redis 配置（覆盖 application.yml 中的 spring.redis 配置）
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_DATABASE: 0
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:}
+
+      # JVM 参数
+      JAVA_OPTS: ${JAVA_OPTS:-Xms512m -Xmx1024m}
+
+      # 时区
+      TZ: Asia/Shanghai
+    ports:
+      - "${APP_PORT}:8080"
+    volumes:
+      # 应用配置文件挂载（可选，通过环境变量覆盖更推荐）
+      # - ./app/application.yml:/app/config/application.yml:ro
+
+      # 应用日志挂载
+      - ./logs/app:/app/logs
+
+      # 其他数据挂载（如上传文件等）
+      - ./app/data:/app/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  app-network:
+    driver: bridge
+#    name: ${PROJECT_NAME}-network
+    name: app-network

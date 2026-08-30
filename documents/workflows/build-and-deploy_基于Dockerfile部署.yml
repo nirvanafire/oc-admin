@@ -11,7 +11,6 @@ env:
   # 例如: registry.cn-hangzhou.aliyuncs.com/my-namespace/oc-admin
   REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
   IMAGE_NAME: ${{ secrets.ALIYUN_NAMESPACE }}
-  PROJECT_NAME: app
 
 
 jobs:
@@ -94,10 +93,5 @@ jobs:
             docker stop oc-admin-srv || true
             docker rm oc-admin-srv || true
             
-            docker run -d --name oc-admin-srv \
-              --network app-network \
-              -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL="mysql-srv" \
-              -e SPRING_REDIS_HOST="redis-srv" \
-              -v /opt/docker/ocadmin:/app/logs \
+            docker run -d --name oc-admin-srv -p 8080:8080 \
               ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:oc-admin_latest

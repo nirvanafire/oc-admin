@@ -8,9 +8,9 @@ spring:
     name: oc-admin
   
   datasource:
-    url: jdbc:mysql://${mysqlUrl:localhost}:3306/oc_admin?allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
-    username: ocadmin
-    password: ocadmin
+    url: jdbc:mysql://${SPRING_DATASOURCE_URL:localhost}:3306/oc_admin?allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: ${SPRING_DATASOURCE_USERNAME:ocadmin}
+    password: ${SPRING_DATASOURCE_PASSWORD:ocadmin}
     driver-class-name: com.mysql.cj.jdbc.Driver
   
   jpa:
@@ -24,10 +24,10 @@ spring:
   
   data:
     redis:
-      host: ${redisHost:localhost}
+      host: ${SPRING_REDIS_HOST:localhost}
       port: 6379
-      password: 123456
-      database: 8
+      password:  ${SPRING_REDIS_PASSWORD:123456}
+      database: ${SPRING_REDIS_DATABASE:0}
       timeout: 5000ms
       lettuce:
         pool:
